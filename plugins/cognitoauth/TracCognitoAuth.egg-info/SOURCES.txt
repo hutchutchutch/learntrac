@@ -1,0 +1,9 @@
+setup.py
+TracCognitoAuth.egg-info/PKG-INFO
+TracCognitoAuth.egg-info/SOURCES.txt
+TracCognitoAuth.egg-info/dependency_links.txt
+TracCognitoAuth.egg-info/entry_points.txt
+TracCognitoAuth.egg-info/requires.txt
+TracCognitoAuth.egg-info/top_level.txt
+cognitoauth/__init__.py
+cognitoauth/plugin.py
