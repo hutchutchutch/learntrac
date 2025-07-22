@@ -1,0 +1,90 @@
+{
+  "http_basic_authentication": {
+    "overview": "Trac's traditional authentication method relies on HTTP Basic Authentication provided by the web server",
+    "authentication_method": "HTTP Basic Authentication",
+    "components": {
+      "LoginModule": {
+        "class": "trac.web.auth.LoginModule",
+        "purpose": "Manages authentication cookies and login/logout links",
+        "expects": "Web server protects /login path with HTTP auth",
+        "cookie_management": true,
+        "provides": ["Login link", "Logout link", "Cookie-based sessions"]
+      }
+    },
+    "web_server_integration": {
+      "description": "Trac delegates authentication to the web server (Apache, nginx, etc.)",
+      "apache_config_example": {
+        "location": "/trac/login",
+        "directives": {
+          "AuthType": "Basic",
+          "AuthName": "Trac Login",
+          "AuthUserFile": "/path/to/htpasswd",
+          "Require": "valid-user"
+        }
+      },
+      "htpasswd_usage": {
+        "create_file": "htpasswd -c /path/to/passwords username",
+        "add_user": "htpasswd /path/to/passwords another_user",
+        "security_note": "Password file must be outside web-accessible directories"
+      }
+    },
+    "authentication_flow": {
+      "1": "User visits /login URL",
+      "2": "Web server challenges with HTTP Basic Auth",
+      "3": "Browser shows authentication popup",
+      "4": "User enters credentials",
+      "5": "Web server validates against htpasswd file",
+      "6": "If valid, Trac LoginModule creates trac_auth cookie",
+      "7": "Cookie used for subsequent requests"
+    },
+    "cookie_management": {
+      "cookie_name": "trac_auth",
+      "database_table": "auth_cookie",
+      "configuration": {
+        "auth_cookie_lifetime": "Lifetime in seconds (0 = session)",
+        "auth_cookie_path": "Path for cookie (for multi-instance sharing)",
+        "auth_cookie_domain": "Domain for cookie",
+        "check_auth_ip": "Whether to verify IP address"
+      }
+    },
+    "limitations": {
+      "logout": {
+        "issue": "HTTP Basic Auth has no real logout mechanism",
+        "workaround": "None that works across all browsers",
+        "note": "This is a limitation of HTTP authentication itself"
+      },
+      "security": {
+        "clear_text": "Passwords travel in clear text without SSL",
+        "recommendation": "Always use HTTPS for production"
+      },
+      "user_experience": {
+        "browser_popup": "Uses browser's built-in authentication dialog",
+        "no_customization": "Cannot customize login interface",
+        "persistence": "Browser may cache credentials"
+      }
+    },
+    "configuration_in_trac_ini": {
+      "disable_login_module": "trac.web.auth.loginmodule = disabled",
+      "enable_alternative": "alternative_auth_plugin.* = enabled"
+    },
+    "common_alternatives": {
+      "AccountManagerPlugin": {
+        "description": "Form-based authentication",
+        "benefits": ["Custom login forms", "Password reset", "User registration"]
+      },
+      "OIDC_Plugin": {
+        "description": "OpenID Connect authentication",
+        "benefits": ["Modern OAuth flow", "SSO support", "External identity providers"]
+      },
+      "CognitoAuthPlugin": {
+        "description": "AWS Cognito authentication",
+        "benefits": ["Managed service", "MFA support", "User pools", "OAuth 2.0 flow"]
+      }
+    },
+    "IAuthenticator_interface": {
+      "purpose": "Extension point for custom authentication",
+      "method": "authenticate(req) -> username or None",
+      "implementation": "Plugins can implement to provide alternative auth methods"
+    }
+  }
+}
