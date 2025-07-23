@@ -1,0 +1,17 @@
+# AWS Configuration
+aws_region   = "us-east-2"
+project_name = "learntrac"
+environment  = "dev"
+allowed_ip   = "YOUR_IP_ADDRESS"
+
+# Neo4j Configuration
+neo4j_uri      = "neo4j+s://YOUR_NEO4J_INSTANCE.databases.neo4j.io"
+neo4j_username = "neo4j"
+neo4j_password = "YOUR_NEO4J_PASSWORD"  # Store securely, do not commit!
+
+# OpenAI Configuration (optional)
+openai_api_key = "YOUR_OPENAI_API_KEY"  # Store securely, do not commit!
+
+# ECS Configuration (optional overrides)
+# learntrac_cpu    = 1024
+# learntrac_memory = 2048

@@ -10,9 +10,9 @@ class Settings(BaseSettings):
     redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379")
     
     # Neo4j
-    neo4j_url: str = os.getenv("NEO4J_URL", "")
+    neo4j_uri: str = os.getenv("NEO4J_URI", "")
     neo4j_user: str = os.getenv("NEO4J_USER", "neo4j")
-    neo4j_password: str = os.getenv("NEO4J_PASSWORD", "password")
+    neo4j_password: str = os.getenv("NEO4J_PASSWORD", "")
     
     # CORS
     allowed_origins: List[str] = [

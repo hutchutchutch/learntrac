@@ -34,12 +34,13 @@ This document tracks the progress of implementing the LearnTrac infrastructure p
 - [x] Set up FastAPI application structure
 - [x] Implement database bridge
 
-### Phase 3: Supporting Services ⚡ IN PROGRESS
+### Phase 3: Supporting Services ✅ COMPLETED
 
 #### 3.1 Data Layer
 - [x] RDS PostgreSQL (already configured)
 - [x] Redis/ElastiCache for sessions
-- [ ] Neo4j configuration (optional for initial deployment)
+- [x] Neo4j configuration (credentials stored in AWS Secrets Manager)
+- [x] AWS Secrets Manager for credential management
 
 #### 3.2 Serverless Components
 - [ ] Lambda functions for voice/chat
@@ -60,8 +61,9 @@ This document tracks the progress of implementing the LearnTrac infrastructure p
 
 ## Current Status
 - **Started**: 2025-07-23
-- **Current Phase**: Ready for initial deployment
-- **Next Steps**: Run deployment script to test infrastructure
+- **Current Phase**: Ready for deployment after ECR fix
+- **Latest Update**: Fixed ECR lifecycle policy configuration
+- **Next Steps**: Run `terraform plan` to verify configuration
 
 ## Key Decisions Made
 1. Using Fargate for ECS to avoid EC2 management
@@ -69,6 +71,8 @@ This document tracks the progress of implementing the LearnTrac infrastructure p
 3. Shared RDS database with compatibility layer
 4. Redis for session management across both systems
 5. Modular Terraform structure for easy maintenance
+6. AWS Secrets Manager for secure credential storage (Neo4j, OpenAI)
+7. Fixed ECR lifecycle policies as separate resources
 
 ## Infrastructure Components Created
 
@@ -94,8 +98,24 @@ This document tracks the progress of implementing the LearnTrac infrastructure p
 3. Terraform installed
 
 ### Deployment Steps
-1. Navigate to the project root
-2. Run the deployment script:
+1. Navigate to the infrastructure directory:
+   ```bash
+   cd learntrac-infrastructure
+   ```
+2. Initialize Terraform (if not already done):
+   ```bash
+   terraform init
+   ```
+3. Plan the deployment:
+   ```bash
+   terraform plan
+   ```
+4. Apply the configuration:
+   ```bash
+   terraform apply
+   ```
+   
+   Or use the deployment script:
    ```bash
    ./scripts/deploy.sh dev apply
    ```
@@ -107,13 +127,23 @@ This document tracks the progress of implementing the LearnTrac infrastructure p
    ```
 
 ## Next Actions
-1. Test the deployment script
-2. Verify ECS services start correctly
-3. Test ALB routing between Trac and LearnTrac
-4. Add monitoring and CloudWatch dashboards
-5. Implement Lambda functions for advanced features
+1. Run `terraform plan` to verify ECR fix resolved the errors
+2. Configure Neo4j URI in terraform.tfvars if using a different instance
+3. Run `terraform apply` to deploy the infrastructure
+4. Build and push Docker images to ECR
+5. Verify ECS services start correctly
+6. Test ALB routing between Trac and LearnTrac
+7. Add monitoring and CloudWatch dashboards
+8. Implement Lambda functions for advanced features
 
 ## Notes
-- Infrastructure is ready for initial deployment
+- Infrastructure is ready for initial deployment after ECR fix
 - Lambda functions and API Gateway WebSocket can be added incrementally
-- Neo4j is optional and can be added later as needed
+- Neo4j credentials are pre-configured in AWS Secrets Manager
+- Neo4j URI needs to be provided for your specific instance
+- All mentions of "TracLearn" have been updated to "LearnTrac"
+
+## Recent Fixes
+- **ECR Lifecycle Policy Error**: Moved lifecycle policies from inline blocks to separate `aws_ecr_lifecycle_policy` resources
+- **Secrets Management**: Implemented AWS Secrets Manager for Neo4j and OpenAI credentials instead of external scripts
+- **Naming Consistency**: Updated all references from TracLearn to LearnTrac throughout the codebase

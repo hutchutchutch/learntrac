@@ -75,10 +75,17 @@ module "learntrac_service" {
   environment_variables = {
     DATABASE_URL     = "postgresql+asyncpg://${var.db_username}:${random_password.db_password.result}@${aws_db_instance.learntrac.endpoint}/${var.project_name}"
     REDIS_URL        = "redis://${aws_elasticache_cluster.redis.cache_nodes[0].address}:6379"
-    NEO4J_URL        = var.neo4j_url
     PYTHON_VERSION   = "3.11"
     COGNITO_POOL_ID  = aws_cognito_user_pool.learntrac_users.id
     COGNITO_CLIENT_ID = aws_cognito_user_pool_client.learntrac_client.id
+    AWS_REGION       = var.aws_region
+  }
+  
+  secret_variables = {
+    NEO4J_URI      = "${aws_secretsmanager_secret.neo4j_credentials.arn}:uri::"
+    NEO4J_USER     = "${aws_secretsmanager_secret.neo4j_credentials.arn}:username::"
+    NEO4J_PASSWORD = "${aws_secretsmanager_secret.neo4j_credentials.arn}:password::"
+    OPENAI_API_KEY = "${aws_secretsmanager_secret.openai_api_key.arn}:api_key::"
   }
   
   target_group_arn       = module.alb.learntrac_target_group_arn

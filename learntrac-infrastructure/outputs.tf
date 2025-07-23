@@ -82,3 +82,14 @@ output "service_urls" {
     health_check   = try("http://${module.alb.alb_dns_name}/health", "Not deployed")
   }
 }
+
+# Secrets Manager ARNs
+output "neo4j_secret_arn" {
+  description = "ARN of the Neo4j credentials secret"
+  value       = aws_secretsmanager_secret.neo4j_credentials.arn
+}
+
+output "openai_secret_arn" {
+  description = "ARN of the OpenAI API key secret"
+  value       = aws_secretsmanager_secret.openai_api_key.arn
+}

@@ -11,7 +11,7 @@ resource "aws_cloudwatch_log_group" "main" {
 
 # IAM Role for ECS Task Execution
 resource "aws_iam_role" "ecs_execution" {
-  name_prefix = "${var.name_prefix}-ecs-execution-"
+  name_prefix = "${substr(var.name_prefix, 0, 20)}-exec-"
   
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -33,9 +33,30 @@ resource "aws_iam_role_policy_attachment" "ecs_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+# Additional policy for Secrets Manager access
+resource "aws_iam_role_policy" "ecs_execution_secrets" {
+  name = "${var.name_prefix}-ecs-execution-secrets"
+  role = aws_iam_role.ecs_execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = [
+          "arn:aws:secretsmanager:*:*:secret:*"
+        ]
+      }
+    ]
+  })
+}
+
 # IAM Role for ECS Task
 resource "aws_iam_role" "ecs_task" {
-  name_prefix = "${var.name_prefix}-ecs-task-"
+  name_prefix = "${substr(var.name_prefix, 0, 20)}-task-"
   
   assume_role_policy = jsonencode({
     Version = "2012-10-17"

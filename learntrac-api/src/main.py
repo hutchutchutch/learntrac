@@ -34,10 +34,10 @@ async def lifespan(app: FastAPI):
         decode_responses=True
     )
     
-    # Initialize Neo4j (only if URL is provided)
-    if settings.neo4j_url:
+    # Initialize Neo4j (only if URI is provided)
+    if settings.neo4j_uri:
         app.state.neo4j = AsyncGraphDatabase.driver(
-            settings.neo4j_url,
+            settings.neo4j_uri,
             auth=(settings.neo4j_user, settings.neo4j_password)
         )
     else:

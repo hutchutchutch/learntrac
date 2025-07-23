@@ -135,8 +135,30 @@ variable "redis_node_type" {
 }
 
 # Neo4j Configuration
-variable "neo4j_url" {
-  description = "Neo4j database URL"
+variable "neo4j_uri" {
+  description = "Neo4j database URI (e.g., neo4j+s://xxxx.databases.neo4j.io)"
   type        = string
   default     = ""
+}
+
+variable "neo4j_username" {
+  description = "Neo4j username"
+  type        = string
+  default     = "neo4j"
+  sensitive   = true
+}
+
+variable "neo4j_password" {
+  description = "Neo4j password"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+# OpenAI Configuration
+variable "openai_api_key" {
+  description = "OpenAI API key for AI features"
+  type        = string
+  default     = ""
+  sensitive   = true
 }

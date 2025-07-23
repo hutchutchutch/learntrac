@@ -151,8 +151,8 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-# Path-based routing for Trac
-resource "aws_lb_listener_rule" "trac_paths" {
+# Path-based routing for Trac - Split into multiple rules due to AWS 5-path limit
+resource "aws_lb_listener_rule" "trac_paths_1" {
   listener_arn = var.certificate_arn != "" ? aws_lb_listener.https[0].arn : aws_lb_listener.http.arn
   priority     = 100
   
@@ -168,7 +168,24 @@ resource "aws_lb_listener_rule" "trac_paths" {
         "/ticket/*",
         "/wiki/*",
         "/timeline/*",
-        "/roadmap/*",
+        "/roadmap/*"
+      ]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "trac_paths_2" {
+  listener_arn = var.certificate_arn != "" ? aws_lb_listener.https[0].arn : aws_lb_listener.http.arn
+  priority     = 101
+  
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.trac.arn
+  }
+  
+  condition {
+    path_pattern {
+      values = [
         "/browser/*",
         "/changeset/*",
         "/attachment/*",
@@ -201,8 +218,8 @@ resource "aws_lb_listener_rule" "learntrac_api" {
   }
 }
 
-# Static assets routing
-resource "aws_lb_listener_rule" "static_assets" {
+# Static assets routing - Split into multiple rules due to AWS 5-path limit
+resource "aws_lb_listener_rule" "static_assets_1" {
   listener_arn = var.certificate_arn != "" ? aws_lb_listener.https[0].arn : aws_lb_listener.http.arn
   priority     = 80
   
@@ -218,7 +235,24 @@ resource "aws_lb_listener_rule" "static_assets" {
         "/static/*",
         "*.css",
         "*.js",
-        "*.png",
+        "*.png"
+      ]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "static_assets_2" {
+  listener_arn = var.certificate_arn != "" ? aws_lb_listener.https[0].arn : aws_lb_listener.http.arn
+  priority     = 81
+  
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.trac.arn
+  }
+  
+  condition {
+    path_pattern {
+      values = [
         "*.jpg",
         "*.ico"
       ]

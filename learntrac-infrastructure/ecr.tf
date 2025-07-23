@@ -7,27 +7,30 @@ resource "aws_ecr_repository" "trac" {
     scan_on_push = true
   }
 
-  lifecycle_policy {
-    policy = jsonencode({
-      rules = [
-        {
-          rulePriority = 1
-          description  = "Keep last 10 images"
-          selection = {
-            tagStatus   = "any"
-            countType   = "imageCountMoreThan"
-            countNumber = 10
-          }
-          action = {
-            type = "expire"
-          }
-        }
-      ]
-    })
-  }
-
   tags = merge(local.common_tags, {
     Name = "${local.project_prefix}-trac-ecr"
+  })
+}
+
+# ECR Lifecycle Policy for Trac
+resource "aws_ecr_lifecycle_policy" "trac" {
+  repository = aws_ecr_repository.trac.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Keep last 10 images"
+        selection = {
+          tagStatus   = "any"
+          countType   = "imageCountMoreThan"
+          countNumber = 10
+        }
+        action = {
+          type = "expire"
+        }
+      }
+    ]
   })
 }
 
@@ -40,26 +43,29 @@ resource "aws_ecr_repository" "learntrac" {
     scan_on_push = true
   }
 
-  lifecycle_policy {
-    policy = jsonencode({
-      rules = [
-        {
-          rulePriority = 1
-          description  = "Keep last 10 images"
-          selection = {
-            tagStatus   = "any"
-            countType   = "imageCountMoreThan"
-            countNumber = 10
-          }
-          action = {
-            type = "expire"
-          }
-        }
-      ]
-    })
-  }
-
   tags = merge(local.common_tags, {
     Name = "${local.project_prefix}-learntrac-ecr"
+  })
+}
+
+# ECR Lifecycle Policy for LearnTrac
+resource "aws_ecr_lifecycle_policy" "learntrac" {
+  repository = aws_ecr_repository.learntrac.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Keep last 10 images"
+        selection = {
+          tagStatus   = "any"
+          countType   = "imageCountMoreThan"
+          countNumber = 10
+        }
+        action = {
+          type = "expire"
+        }
+      }
+    ]
   })
 }
