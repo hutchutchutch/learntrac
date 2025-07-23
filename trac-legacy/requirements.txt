@@ -1,0 +1,6 @@
+Trac==1.4.4
+psycopg2==2.8.6
+Genshi==0.7.7
+Babel==2.9.1
+Pygments==2.5.2
+pytz

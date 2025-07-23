@@ -38,3 +38,47 @@ output "cognito_domain" {
 output "cognito_domain_url" {
   value = "https://${aws_cognito_user_pool_domain.learntrac_domain.domain}.auth.${var.aws_region}.amazoncognito.com"
 }
+
+# ALB Outputs
+output "alb_dns_name" {
+  description = "DNS name of the Application Load Balancer"
+  value       = try(module.alb.alb_dns_name, "ALB not deployed")
+}
+
+output "alb_url" {
+  description = "URL to access the application"
+  value       = try("http://${module.alb.alb_dns_name}", "ALB not deployed")
+}
+
+# ECR Repository URLs
+output "trac_ecr_repository_url" {
+  description = "URL of the Trac ECR repository"
+  value       = try(aws_ecr_repository.trac.repository_url, "ECR not created")
+}
+
+output "learntrac_ecr_repository_url" {
+  description = "URL of the LearnTrac ECR repository"
+  value       = try(aws_ecr_repository.learntrac.repository_url, "ECR not created")
+}
+
+# ECS Cluster
+output "ecs_cluster_name" {
+  description = "Name of the ECS cluster"
+  value       = try(aws_ecs_cluster.main.name, "ECS cluster not created")
+}
+
+# Redis Endpoint
+output "redis_endpoint" {
+  description = "Redis cluster endpoint"
+  value       = try(aws_elasticache_cluster.redis.cache_nodes[0].address, "Redis not created")
+}
+
+# Service URLs
+output "service_urls" {
+  description = "URLs for accessing different services"
+  value = {
+    trac_legacy    = try("http://${module.alb.alb_dns_name}/trac/", "Not deployed")
+    learntrac_api  = try("http://${module.alb.alb_dns_name}/api/learntrac/health", "Not deployed")
+    health_check   = try("http://${module.alb.alb_dns_name}/health", "Not deployed")
+  }
+}

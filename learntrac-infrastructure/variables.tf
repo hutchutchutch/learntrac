@@ -57,3 +57,86 @@ variable "db_engine_version" {
   type        = string
   default     = "15.7"  # Latest stable 15.x version
 }
+
+# SSL Certificate
+variable "ssl_certificate_arn" {
+  description = "ARN of SSL certificate for HTTPS"
+  type        = string
+  default     = ""
+}
+
+# ECS Configuration for Trac
+variable "trac_cpu" {
+  description = "CPU units for Trac service"
+  type        = number
+  default     = 512
+}
+
+variable "trac_memory" {
+  description = "Memory for Trac service"
+  type        = number
+  default     = 1024
+}
+
+variable "trac_desired_count" {
+  description = "Desired number of Trac tasks"
+  type        = number
+  default     = 1
+}
+
+variable "trac_min_count" {
+  description = "Minimum number of Trac tasks"
+  type        = number
+  default     = 1
+}
+
+variable "trac_max_count" {
+  description = "Maximum number of Trac tasks"
+  type        = number
+  default     = 4
+}
+
+# ECS Configuration for LearnTrac
+variable "learntrac_cpu" {
+  description = "CPU units for LearnTrac service"
+  type        = number
+  default     = 1024
+}
+
+variable "learntrac_memory" {
+  description = "Memory for LearnTrac service"
+  type        = number
+  default     = 2048
+}
+
+variable "learntrac_desired_count" {
+  description = "Desired number of LearnTrac tasks"
+  type        = number
+  default     = 1
+}
+
+variable "learntrac_min_count" {
+  description = "Minimum number of LearnTrac tasks"
+  type        = number
+  default     = 1
+}
+
+variable "learntrac_max_count" {
+  description = "Maximum number of LearnTrac tasks"
+  type        = number
+  default     = 4
+}
+
+# Redis Configuration
+variable "redis_node_type" {
+  description = "ElastiCache Redis node type"
+  type        = string
+  default     = "cache.t3.micro"
+}
+
+# Neo4j Configuration
+variable "neo4j_url" {
+  description = "Neo4j database URL"
+  type        = string
+  default     = ""
+}
