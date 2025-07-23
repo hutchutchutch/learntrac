@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (local testing)
+  postgres:
+    image: postgres:13
+    container_name: learntrac-postgres
+    environment:
+      POSTGRES_DB: learntrac
+      POSTGRES_USER: learntrac
+      POSTGRES_PASSWORD: localpass123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - learntrac-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U learntrac"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache (local testing)
+  redis:
+    image: redis:7-alpine
+    container_name: learntrac-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - learntrac-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Trac Legacy System
+  trac:
+    build:
+      context: ./trac
+      dockerfile: Dockerfile
+    image: learntrac/trac:local
+    container_name: trac-local
+    ports:
+      - "8000:8000"
+    environment:
+      TRAC_ENV: /var/trac/projects
+      DATABASE_URL: postgres://learntrac:localpass123@postgres:5432/learntrac
+      COGNITO_DOMAIN: ${COGNITO_DOMAIN:-hutch-learntrac-dev-auth}
+      COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-5adkv019v4rcu6o87ffg46ep02}
+      AWS_REGION: ${AWS_REGION:-us-east-2}
+      COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-us-east-2_IvxzMrWwg}
+      # For local testing - API communication
+      LEARNTRAC_API_URL: http://learntrac-api:8001
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - learntrac-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # LearnTrac API
+  learntrac-api:
+    build:
+      context: ./learntrac
+      dockerfile: Dockerfile
+    image: learntrac/api:local
+    container_name: learntrac-api-local
+    ports:
+      - "8001:8001"
+    environment:
+      ENVIRONMENT: local
+      DATABASE_URL: postgresql+asyncpg://learntrac:localpass123@postgres:5432/learntrac
+      REDIS_URL: redis://redis:6379
+      COGNITO_POOL_ID: ${COGNITO_USER_POOL_ID:-us-east-2_IvxzMrWwg}
+      COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-5adkv019v4rcu6o87ffg46ep02}
+      COGNITO_DOMAIN: ${COGNITO_DOMAIN:-hutch-learntrac-dev-auth}
+      AWS_REGION: ${AWS_REGION:-us-east-2}
+      BASE_URL: http://localhost:8001
+      # For local testing - Trac communication
+      TRAC_URL: http://trac:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - learntrac-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  learntrac-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

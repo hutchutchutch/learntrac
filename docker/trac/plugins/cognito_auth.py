@@ -8,6 +8,7 @@ from trac.core import Component, implements
 from trac.web.api import IAuthenticator, IRequestHandler
 from trac.web.chrome import INavigationContributor, add_notice, add_warning
 from trac.util.translation import _
+from trac.util.html import tag
 import urllib
 import urllib2
 import json

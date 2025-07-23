@@ -69,6 +69,36 @@ async def list_courses():
         "total": 3
     }
 
+@app.post("/api/learntrac/test-data")
+async def create_test_data(data: dict):
+    """Test endpoint for inter-container communication"""
+    return {
+        "received": data,
+        "processed_at": datetime.utcnow().isoformat(),
+        "container": "learntrac-api"
+    }
+
+@app.get("/api/learntrac/trac-status")
+async def check_trac_status():
+    """Check if Trac is accessible from API container"""
+    import httpx
+    trac_url = os.getenv("TRAC_URL", "http://trac:8000")
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(trac_url, timeout=5.0)
+            return {
+                "trac_accessible": True,
+                "status_code": response.status_code,
+                "trac_url": trac_url
+            }
+    except Exception as e:
+        return {
+            "trac_accessible": False,
+            "error": str(e),
+            "trac_url": trac_url
+        }
+
 @app.get("/login")
 async def login():
     """Redirect to Cognito login"""
