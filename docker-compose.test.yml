@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  trac:
+    build: ./docker/trac
+    image: learntrac/trac:test
+    container_name: trac-test
+    ports:
+      - "8000:8000"
+    environment:
+      - TRAC_ENV=/var/trac/projects
+      - DATABASE_URL=${DATABASE_URL_TRAC:-sqlite:///var/trac/projects/trac.db}
+      - COGNITO_DOMAIN=${COGNITO_DOMAIN:-hutch-learntrac-dev-auth}
+      - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}
+      - AWS_REGION=${AWS_REGION:-us-east-2}
+      - PYTHONPATH=/app/plugins:$PYTHONPATH
+    healthcheck:
+      test: ["CMD", "python", "/usr/local/bin/health-check.py"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+    volumes:
+      - trac-data:/var/trac/projects
+    networks:
+      - learntrac-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  api:
+    build: ./docker/learntrac
+    image: learntrac/api:test
+    container_name: learntrac-test
+    ports:
+      - "8001:8001"
+    environment:
+      - ENVIRONMENT=local
+      - DATABASE_URL=${DATABASE_URL_API:-postgresql://learntrac:learntrac@postgres:5432/learntrac}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - AWS_REGION=${AWS_REGION:-us-east-2}
+      - COGNITO_POOL_ID=${COGNITO_POOL_ID}
+      - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}
+      - COGNITO_DOMAIN=${COGNITO_DOMAIN:-hutch-learntrac-dev-auth}
+      - REDIRECT_URI=http://localhost:8001/auth/callback
+      - LOGOUT_URI=http://localhost:8001/
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - trac
+    networks:
+      - learntrac-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  trac-data:
+
+networks:
+  learntrac-network:
+    driver: bridge

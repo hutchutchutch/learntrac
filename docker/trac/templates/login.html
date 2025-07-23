@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:py="http://genshi.edgewall.org/">
+  <head>
+    <title>Login - LearnTrac</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f5f5f5;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+      }
+      .login-container {
+        background: white;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        text-align: center;
+        max-width: 400px;
+        width: 100%;
+      }
+      h1 {
+        color: #333;
+        margin-bottom: 1.5rem;
+      }
+      .login-button {
+        background-color: #FF9900;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        font-size: 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+        margin-top: 1rem;
+      }
+      .login-button:hover {
+        background-color: #EC7211;
+      }
+      .info {
+        color: #666;
+        margin-top: 1rem;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="login-container">
+      <h1>LearnTrac Login</h1>
+      <p>Please sign in using your AWS Cognito credentials</p>
+      <a href="${href.login()}" class="login-button">Sign In with AWS Cognito</a>
+      <p class="info">You will be redirected to the secure AWS Cognito login page</p>
+    </div>
+  </body>
+</html>

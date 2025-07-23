@@ -1,0 +1,9 @@
+[components]
+trac.web.auth.loginmodule = disabled
+
+[project]
+name = LearnTrac Legacy
+descr = Legacy Trac system
+
+[trac]
+base_url = http://localhost:8000
