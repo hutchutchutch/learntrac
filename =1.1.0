@@ -1,0 +1,28 @@
+Collecting PyJWT
+  Downloading PyJWT-2.10.1-py3-none-any.whl.metadata (4.0 kB)
+Collecting cryptography
+  Using cached cryptography-45.0.5-cp311-abi3-manylinux_2_34_x86_64.whl.metadata (5.7 kB)
+Collecting requests-cache
+  Downloading requests_cache-1.2.1-py3-none-any.whl.metadata (9.9 kB)
+Requirement already satisfied: cffi>=1.14 in /home/codespace/.local/lib/python3.12/site-packages (from cryptography) (1.17.1)
+Requirement already satisfied: attrs>=21.2 in /home/codespace/.local/lib/python3.12/site-packages (from requests-cache) (25.3.0)
+Collecting cattrs>=22.2 (from requests-cache)
+  Downloading cattrs-25.1.1-py3-none-any.whl.metadata (8.4 kB)
+Requirement already satisfied: platformdirs>=2.5 in /home/codespace/.local/lib/python3.12/site-packages (from requests-cache) (4.3.8)
+Requirement already satisfied: requests>=2.22 in /home/codespace/.local/lib/python3.12/site-packages (from requests-cache) (2.32.4)
+Collecting url-normalize>=1.4 (from requests-cache)
+  Downloading url_normalize-2.2.1-py3-none-any.whl.metadata (5.6 kB)
+Requirement already satisfied: urllib3>=1.25.5 in /home/codespace/.local/lib/python3.12/site-packages (from requests-cache) (2.5.0)
+Requirement already satisfied: typing-extensions>=4.12.2 in /home/codespace/.local/lib/python3.12/site-packages (from cattrs>=22.2->requests-cache) (4.14.1)
+Requirement already satisfied: pycparser in /home/codespace/.local/lib/python3.12/site-packages (from cffi>=1.14->cryptography) (2.22)
+Requirement already satisfied: charset_normalizer<4,>=2 in /home/codespace/.local/lib/python3.12/site-packages (from requests>=2.22->requests-cache) (3.4.2)
+Requirement already satisfied: idna<4,>=2.5 in /home/codespace/.local/lib/python3.12/site-packages (from requests>=2.22->requests-cache) (3.10)
+Requirement already satisfied: certifi>=2017.4.17 in /home/codespace/.local/lib/python3.12/site-packages (from requests>=2.22->requests-cache) (2025.7.9)
+Downloading PyJWT-2.10.1-py3-none-any.whl (22 kB)
+Using cached cryptography-45.0.5-cp311-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
+Downloading requests_cache-1.2.1-py3-none-any.whl (61 kB)
+Downloading cattrs-25.1.1-py3-none-any.whl (69 kB)
+Downloading url_normalize-2.2.1-py3-none-any.whl (14 kB)
+Installing collected packages: url-normalize, PyJWT, cattrs, requests-cache, cryptography
+
+Successfully installed PyJWT-2.10.1 cattrs-25.1.1 cryptography-45.0.5 requests-cache-1.2.1 url-normalize-2.2.1
