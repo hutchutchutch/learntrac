@@ -1,294 +1,323 @@
 # LearnTrac Infrastructure Testing - Step by Step Guide
 
-This guide provides exact commands to run in your terminal to test the deployed infrastructure.
+This guide provides exact commands to run from the **project root directory** to test the deployed infrastructure. Each step builds on the previous one, with a comprehensive test at the end.
 
 ## Prerequisites
 
 Before starting, ensure you have:
 - AWS CLI configured with appropriate credentials
 - Docker installed and running
-- Terminal open in the project root directory
+- Terminal open in the project root directory (`learntrac/`)
+
+## Initial Setup - Export Environment Variables
+
+Run these commands first to set up variables used throughout testing:
+
+```bash
+# From project root, export key variables
+export ALB_DNS=$(cd learntrac-infrastructure && terraform output -raw alb_dns_name && cd ..)
+export CLUSTER=$(cd learntrac-infrastructure && terraform output -raw ecs_cluster_name && cd ..)
+export REDIS_ENDPOINT=$(cd learntrac-infrastructure && terraform output -raw redis_endpoint && cd ..)
+export TRAC_ECR=$(cd learntrac-infrastructure && terraform output -raw trac_ecr_repository_url && cd ..)
+export LEARNTRAC_ECR=$(cd learntrac-infrastructure && terraform output -raw learntrac_ecr_repository_url && cd ..)
+
+# Verify variables are set
+echo "ALB: $ALB_DNS"
+echo "Cluster: $CLUSTER"
+echo "Redis: $REDIS_ENDPOINT"
+```
 
 ## Step 1: Initial Infrastructure Test
 
-First, let's check what was successfully deployed:
+Test what was successfully deployed:
 
 ```bash
-# Navigate to the scripts directory
-cd scripts
-
-# Run the infrastructure test
-./test-infrastructure.sh
+# From project root
+./scripts/test-infrastructure.sh
 ```
 
 **Expected output:**
 - ✅ ALB is responding
 - ✅ ECR repositories exist
 - ✅ ECS cluster exists
-- ⚠️  Services may show 0 running tasks (this is normal - no images deployed yet)
+- ⚠️  Services may show 0 running tasks (normal if no images deployed)
 
-## Step 2: Get Infrastructure Information
+**Success Criteria:** ALB responds with HTTP 200
 
-Get the key infrastructure details:
+## Step 2: Test Basic ALB Connectivity
 
-```bash
-# Navigate to infrastructure directory
-cd ../learntrac-infrastructure
-
-# Get ALB DNS name (save this - you'll use it a lot)
-terraform output alb_dns_name
-
-# Get ECR repository URLs
-terraform output trac_ecr_repository_url
-terraform output learntrac_ecr_repository_url
-
-# Get other important values
-terraform output ecs_cluster_name
-terraform output redis_endpoint
-```
-
-**Save the ALB DNS name for later use:**
-```bash
-# Set as environment variable for easier testing
-export ALB_DNS=$(terraform output -raw alb_dns_name)
-echo "ALB URL: http://$ALB_DNS"
-```
-
-## Step 3: Test Basic ALB Connectivity
-
-Test that the ALB is responding:
+Verify the load balancer is accessible:
 
 ```bash
 # Test default route
 curl -v http://$ALB_DNS/
 
-# You should see: "Welcome to TracLearn"
+# Expected: "Welcome to TracLearn" with HTTP 200
 ```
+
+**Success Criteria:** Receives HTTP 200 response
+
+## Step 3: Fix ECS Networking (If Needed)
+
+If services show continuous restarts in Step 1:
+
+```bash
+# Run networking diagnostic and fix script
+./scripts/fix-ecs-networking.sh
+
+# Follow prompts to enable public IP assignment if needed
+```
+
+**Success Criteria:** Script identifies networking issues and offers fix
 
 ## Step 4: Deploy Test Containers
 
-Now let's deploy minimal test containers to verify ECS works:
+Deploy minimal containers to verify ECS functionality:
 
 ```bash
-# Go back to project root
-cd ..
-
-# Deploy test containers
+# From project root - deploy test containers
 ./scripts/deploy-test-containers.sh
 ```
 
-**This script will:**
-1. Build test containers locally
-2. Login to ECR
-3. Push containers to ECR
-4. Force new ECS deployments
+**Success Criteria:** 
+- ✅ Images built successfully
+- ✅ Images pushed to ECR
+- ✅ Service updates initiated
 
 ## Step 5: Monitor Deployment Progress
 
-Watch the services come online (this takes 2-3 minutes):
+Wait for services to stabilize:
 
 ```bash
-# Get cluster name
-CLUSTER=$(cd learntrac-infrastructure && terraform output -raw ecs_cluster_name)
-
-# Watch service status (press Ctrl+C to exit)
-watch -n 5 "aws ecs describe-services \
-  --cluster $CLUSTER \
+# Monitor service status (Ctrl+C to exit)
+watch -n 5 'aws ecs describe-services \
+  --cluster '"$CLUSTER"' \
   --services hutch-learntrac-dev-trac hutch-learntrac-dev-learntrac \
-  --query 'services[*].[serviceName,runningCount,desiredCount]' \
-  --output table"
+  --query "services[*].[serviceName,runningCount,desiredCount]" \
+  --output table'
 ```
 
-**Wait until you see:**
-- runningCount equals desiredCount for both services
-- This usually takes 2-3 minutes
+**Success Criteria:** Both services show runningCount = desiredCount = 1
 
-## Step 6: Check ECS Task Status
+## Step 6: Verify Container Health
 
-If services aren't starting, check why:
+Check if containers are running properly:
 
 ```bash
-# List all tasks
-aws ecs list-tasks --cluster $CLUSTER
+# Check running tasks
+aws ecs list-tasks --cluster $CLUSTER --desired-status RUNNING --output table
 
-# Get task details (replace task-arn with actual ARN from above)
-aws ecs describe-tasks \
-  --cluster $CLUSTER \
-  --tasks [task-arn] \
-  --query 'tasks[0].stoppedReason'
+# If no running tasks, check stopped tasks for errors
+aws ecs list-tasks --cluster $CLUSTER --desired-status STOPPED --query 'taskArns[0]' --output text | \
+  xargs -I {} aws ecs describe-tasks --cluster $CLUSTER --tasks {} \
+  --query 'tasks[0].[stoppedReason,containers[0].reason]' --output text
 ```
 
-## Step 7: Check CloudWatch Logs
+**Success Criteria:** At least 2 running tasks (one per service)
 
-View container logs to debug issues:
+## Step 7: Test ALB Routing
 
-```bash
-# Install awslogs if not already installed
-pip install awslogs
-
-# View Trac logs
-awslogs get /ecs/hutch-learntrac-dev-trac ALL --start='5m ago'
-
-# View LearnTrac logs
-awslogs get /ecs/hutch-learntrac-dev-learntrac ALL --start='5m ago'
-```
-
-## Step 8: Test ALB Routing
-
-Once services are running, test all routes:
+Verify all routing rules work correctly:
 
 ```bash
-# Run the ALB routing test script
+# From project root - run comprehensive routing test
 ./scripts/test-alb-routing.sh
 ```
 
-Or test manually:
+Or test individual endpoints:
 
 ```bash
-# Test Trac routes
-curl http://$ALB_DNS/trac/login
-curl http://$ALB_DNS/wiki/TestPage
-curl http://$ALB_DNS/ticket/123
+# Test Trac endpoints
+curl -s -o /dev/null -w "%{http_code}" http://$ALB_DNS/trac/login
+curl -s -o /dev/null -w "%{http_code}" http://$ALB_DNS/wiki/test
+curl -s -o /dev/null -w "%{http_code}" http://$ALB_DNS/ticket/123
 
-# Test LearnTrac API routes
-curl http://$ALB_DNS/api/learntrac/health
-curl http://$ALB_DNS/api/chat/test
-curl http://$ALB_DNS/api/voice/test
-
-# Pretty print JSON responses
+# Test LearnTrac API endpoints
 curl -s http://$ALB_DNS/api/learntrac/health | python -m json.tool
+curl -s http://$ALB_DNS/api/chat/test | python -m json.tool
+curl -s http://$ALB_DNS/api/voice/test | python -m json.tool
 ```
 
-## Step 9: Test Other Infrastructure Components
+**Success Criteria:** All endpoints return HTTP 200
 
-### Test Redis Connectivity
+## Step 8: Test Infrastructure Components
 
+### Redis Connectivity
 ```bash
-# Get Redis endpoint
-REDIS=$(cd learntrac-infrastructure && terraform output -raw redis_endpoint)
-
-# If you have redis-cli installed
-redis-cli -h $REDIS ping
-
-# Or use Docker
-docker run --rm redis:alpine redis-cli -h $REDIS ping
+# Test Redis with Docker
+docker run --rm redis:alpine redis-cli -h $REDIS_ENDPOINT ping
 ```
+**Success Criteria:** Returns "PONG"
 
-### Check Secrets Manager
-
+### Secrets Manager
 ```bash
-# List secrets
+# List LearnTrac secrets
 aws secretsmanager list-secrets \
-  --query "SecretList[?contains(Name, 'learntrac')].[Name,Description]" \
+  --query "SecretList[?contains(Name, 'learntrac')].[Name,ARN]" \
   --output table
 
-# Get Neo4j secret ARN
-NEO4J_SECRET=$(cd learntrac-infrastructure && terraform output -raw neo4j_secret_arn)
-
-# View secret details (without revealing values)
-aws secretsmanager describe-secret --secret-id $NEO4J_SECRET
+# Verify Neo4j secret exists
+aws secretsmanager describe-secret \
+  --secret-id $(cd learntrac-infrastructure && terraform output -raw neo4j_secret_arn) \
+  --query '[Name,ARN,CreatedDate]' --output table
 ```
+**Success Criteria:** Secrets are listed and accessible
 
-### Check Target Group Health
-
+### Target Group Health
 ```bash
-# Get target group health status
+# Check all target groups
 aws elbv2 describe-target-groups \
-  --query "TargetGroups[?contains(TargetGroupName, 'learntrac')].[TargetGroupArn]" \
+  --query "TargetGroups[?contains(TargetGroupName, 'learntrac')].[TargetGroupName,HealthCheckPath,TargetType]" \
+  --output table
+
+# Check target health
+aws elbv2 describe-target-groups \
+  --query "TargetGroups[?contains(TargetGroupName, 'learntrac')].TargetGroupArn" \
   --output text | while read arn; do
-    echo "Target Group: $arn"
-    aws elbv2 describe-target-health --target-group-arn $arn
-    echo "---"
+    echo "=== Target Group: $(basename $arn) ==="
+    aws elbv2 describe-target-health --target-group-arn $arn \
+      --query 'TargetHealthDescriptions[*].[Target.Id,TargetHealth.State]' \
+      --output table
 done
 ```
+**Success Criteria:** All targets show "healthy" state
 
-## Step 10: Comprehensive Test
+## Step 9: Verify Logs
 
-Run all tests again to ensure everything is working:
+Check CloudWatch logs for any errors:
 
 ```bash
-# Run infrastructure test
+# Check if logs exist
+aws logs describe-log-streams \
+  --log-group-name /ecs/hutch-learntrac-dev-trac \
+  --order-by LastEventTime --descending --max-items 1 \
+  --query 'logStreams[0].lastEventTime' --output text
+
+aws logs describe-log-streams \
+  --log-group-name /ecs/hutch-learntrac-dev-learntrac \
+  --order-by LastEventTime --descending --max-items 1 \
+  --query 'logStreams[0].lastEventTime' --output text
+
+# View recent logs (requires awslogs)
+pip install awslogs >/dev/null 2>&1
+awslogs get /ecs/hutch-learntrac-dev-trac ALL --start='10m ago' | tail -20
+awslogs get /ecs/hutch-learntrac-dev-learntrac ALL --start='10m ago' | tail -20
+```
+
+**Success Criteria:** Logs show containers starting without errors
+
+## Step 10: Comprehensive Infrastructure Test
+
+Run the complete test suite:
+
+```bash
+# From project root - final comprehensive test
 ./scripts/test-infrastructure.sh
 
-# If all services are running, you should see:
-# ✅ All infrastructure components
-# ✅ Services with running tasks
-# ✅ Healthy target groups
+# All items should show ✅
 ```
 
-## Troubleshooting Commands
+**Success Criteria:** All components show green checkmarks
 
-If something isn't working:
+## Composite Test Script
 
-### Check ECS Service Events
+Create and run a single script that validates everything:
+
 ```bash
-aws ecs describe-services \
-  --cluster $CLUSTER \
-  --services hutch-learntrac-dev-trac \
-  --query 'services[0].events[0:5]' \
-  --output table
+# Create comprehensive test script
+cat > ./scripts/test-all.sh << 'EOF'
+#!/bin/bash
+# Comprehensive infrastructure test
+
+echo "==================================="
+echo "LearnTrac Complete Infrastructure Test"
+echo "==================================="
+
+# Setup
+export ALB_DNS=$(cd learntrac-infrastructure && terraform output -raw alb_dns_name && cd ..)
+export CLUSTER=$(cd learntrac-infrastructure && terraform output -raw ecs_cluster_name && cd ..)
+PASS=0
+FAIL=0
+
+# Function to test and report
+test_component() {
+    echo -n "Testing $1... "
+    if eval "$2" >/dev/null 2>&1; then
+        echo "✅ PASS"
+        ((PASS++))
+    else
+        echo "❌ FAIL"
+        ((FAIL++))
+    fi
+}
+
+# Run all tests
+test_component "ALB Connectivity" "curl -s -f http://$ALB_DNS/"
+test_component "Trac Health Check" "curl -s -f http://$ALB_DNS/trac/login"
+test_component "LearnTrac Health Check" "curl -s -f http://$ALB_DNS/api/learntrac/health"
+test_component "ECS Cluster" "aws ecs describe-clusters --clusters $CLUSTER"
+test_component "Trac Service Running" "aws ecs describe-services --cluster $CLUSTER --services hutch-learntrac-dev-trac --query 'services[0].runningCount' --output text | grep -E '^[1-9]'"
+test_component "LearnTrac Service Running" "aws ecs describe-services --cluster $CLUSTER --services hutch-learntrac-dev-learntrac --query 'services[0].runningCount' --output text | grep -E '^[1-9]'"
+test_component "Redis Connectivity" "docker run --rm redis:alpine redis-cli -h $(cd learntrac-infrastructure && terraform output -raw redis_endpoint) ping"
+test_component "ECR Trac Repository" "aws ecr describe-repositories --repository-names hutch-learntrac-dev-trac"
+test_component "ECR LearnTrac Repository" "aws ecr describe-repositories --repository-names hutch-learntrac-dev-learntrac"
+test_component "Secrets Manager" "aws secretsmanager list-secrets --query 'SecretList[?contains(Name, `learntrac`)]' --output text"
+
+echo ""
+echo "==================================="
+echo "Test Summary: $PASS passed, $FAIL failed"
+echo "==================================="
+
+if [ $FAIL -eq 0 ]; then
+    echo "🎉 All infrastructure tests passed!"
+    exit 0
+else
+    echo "⚠️  Some tests failed. Check the output above."
+    exit 1
+fi
+EOF
+
+chmod +x ./scripts/test-all.sh
+
+# Run comprehensive test
+./scripts/test-all.sh
 ```
 
-### Force New Deployment
+## Success Criteria Summary
+
+Infrastructure is fully operational when:
+
+1. ✅ ALB responds on all configured paths
+2. ✅ Both ECS services have running tasks
+3. ✅ Target groups report healthy targets
+4. ✅ Redis connectivity confirmed
+5. ✅ ECR repositories accessible
+6. ✅ Secrets Manager configured
+7. ✅ CloudWatch logs show no errors
+8. ✅ All routing rules work correctly
+
+## Troubleshooting Quick Commands
+
 ```bash
-aws ecs update-service \
-  --cluster $CLUSTER \
-  --service hutch-learntrac-dev-trac \
-  --force-new-deployment
+# Debug ECS issues
+./scripts/debug-ecs.sh
+
+# Fix networking issues
+./scripts/fix-ecs-networking.sh
+
+# Force service restart
+aws ecs update-service --cluster $CLUSTER --service hutch-learntrac-dev-trac --force-new-deployment
+aws ecs update-service --cluster $CLUSTER --service hutch-learntrac-dev-learntrac --force-new-deployment
+
+# Check recent events
+aws ecs describe-services --cluster $CLUSTER --services hutch-learntrac-dev-trac --query 'services[0].events[0:5]' --output table
 ```
-
-### Check Security Groups
-```bash
-# List all security groups
-aws ec2 describe-security-groups \
-  --filters "Name=tag:Project,Values=learntrac" \
-  --query "SecurityGroups[*].[GroupId,GroupName,Description]" \
-  --output table
-```
-
-### View ECS Task Definition
-```bash
-aws ecs describe-task-definition \
-  --task-definition hutch-learntrac-dev-trac \
-  --query 'taskDefinition.containerDefinitions[0]'
-```
-
-## Success Criteria
-
-You know the infrastructure is working when:
-
-1. ✅ `./scripts/test-infrastructure.sh` shows all green checkmarks
-2. ✅ Both ECS services show running tasks (1/1)
-3. ✅ ALB health checks are passing (target groups show healthy)
-4. ✅ All test endpoints return expected responses
-5. ✅ CloudWatch logs show containers starting successfully
-6. ✅ Redis responds to ping
-7. ✅ Secrets are accessible in Secrets Manager
 
 ## Next Steps
 
 Once all tests pass:
-
-1. Build and deploy the actual Trac and LearnTrac applications
-2. Configure database connections and migrations
-3. Set up monitoring and alarms
-4. Configure auto-scaling thresholds
-5. Add SSL certificate to ALB
-
-## Quick Reference
-
-```bash
-# Key commands to remember
-export ALB_DNS=$(cd learntrac-infrastructure && terraform output -raw alb_dns_name)
-export CLUSTER=$(cd learntrac-infrastructure && terraform output -raw ecs_cluster_name)
-
-# Test endpoints
-curl http://$ALB_DNS/trac/login          # Trac health
-curl http://$ALB_DNS/api/learntrac/health # LearnTrac health
-
-# Check services
-aws ecs describe-services --cluster $CLUSTER --services hutch-learntrac-dev-trac hutch-learntrac-dev-learntrac --query 'services[*].[serviceName,runningCount,desiredCount]' --output table
-
-# View logs
-awslogs get /ecs/hutch-learntrac-dev-trac ALL --start='5m ago'
-```
+1. Deploy actual Trac and LearnTrac applications
+2. Configure database migrations
+3. Set up monitoring dashboards
+4. Configure auto-scaling policies
+5. Add SSL certificates
