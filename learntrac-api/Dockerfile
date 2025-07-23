@@ -17,8 +17,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY src/ ./src/
-COPY alembic/ ./alembic/
-COPY alembic.ini .
 
 # Run database migrations on startup
 COPY scripts/start-api.sh /usr/local/bin/
