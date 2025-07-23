@@ -1,11 +1,13 @@
-from fastapi import FastAPI, HTTPException, Depends
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi import FastAPI, HTTPException, Depends, WebSocket
+from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from datetime import datetime
 import os
 import logging
 from typing import Optional, Dict, Any
 from .auth import cognito_auth, get_current_user, get_optional_user
+from .websocket_handlers import handle_audio_websocket, handle_debug_websocket
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -143,6 +145,36 @@ async def general_exception_handler(request, exc):
         status_code=500,
         content={"detail": "Internal server error", "type": str(type(exc).__name__)}
     )
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/debug-console", response_class=HTMLResponse)
+async def debug_console():
+    """Serve the debug console interface"""
+    with open("static/debug-console.html", "r") as f:
+        return HTMLResponse(content=f.read())
+
+@app.websocket("/ws/audio")
+async def websocket_audio_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for audio streaming"""
+    await handle_audio_websocket(websocket)
+
+@app.websocket("/ws/debug")
+async def websocket_debug_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for debug console"""
+    await handle_debug_websocket(websocket)
+
+@app.get("/api/speech/status")
+async def speech_status():
+    """Get speech processing system status"""
+    from .speech_processing import speech_debugger
+    return {
+        "status": "operational",
+        "active_sessions": len(speech_debugger.active_sessions),
+        "total_events": len(speech_debugger.events),
+        "subscribers": len(speech_debugger.subscribers)
+    }
 
 if __name__ == "__main__":
     import uvicorn
