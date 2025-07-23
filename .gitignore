@@ -24,3 +24,73 @@ claude-flow
 claude-flow.bat
 claude-flow.ps1
 hive-mind-prompt-*.txt
+
+# .gitignore for TracLearn project
+
+# Terraform files to ALWAYS exclude
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate.d/
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# AWS credentials and secrets
+.aws/
+*.pem
+*.key
+.env
+.env.*
+
+# Terraform plan files
+*.tfplan
+*.out
+
+# Sensitive variable files
+secrets.auto.tfvars
+prod.tfvars
+staging.tfvars
+
+# Local development files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+*.egg-info/
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Temporary files
+tmp/
+temp/
