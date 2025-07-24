@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:py="http://genshi.edgewall.org/"
+      xmlns:xi="http://www.w3.org/2001/XInclude"
+      py:strip="">
+  <py:match path="head" once="false">
+    <head py:attrs="select('@*')">
+      <title py:if="title">TracLearn - ${select('title/text()')}</title>
+      ${select('*[local-name()!="title"]')}
+      
+      <!-- TracLearn Base Styles -->
+      <link rel="stylesheet" type="text/css" 
+            href="${chrome.htdocs_location}traclearn/css/traclearn-base.css" />
+      
+      <!-- HTMX for dynamic updates -->
+      <script src="https://unpkg.com/htmx.org@1.9.9"></script>
+      
+      <!-- Chart.js for analytics -->
+      <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
+    </head>
+  </py:match>
+
+  <py:match path="body" once="false">
+    <body py:attrs="select('@*')">
+      <!-- TracLearn Navigation -->
+      <div id="traclearn-nav" py:if="req.perm.has_permission('TRACLEARN_VIEW')">
+        <ul>
+          <li><a href="${href.traclearn()}" class="${'active' if req.path_info == '/traclearn' else ''}">
+            Dashboard
+          </a></li>
+          <li><a href="${href.traclearn('courses')}" class="${'active' if 'courses' in req.path_info else ''}">
+            Courses
+          </a></li>
+          <li py:if="req.perm.has_permission('TRACLEARN_STUDENT')">
+            <a href="${href.traclearn('my-courses')}" class="${'active' if 'my-courses' in req.path_info else ''}">
+              My Courses
+            </a>
+          </li>
+          <li py:if="req.perm.has_permission('TRACLEARN_INSTRUCTOR')">
+            <a href="${href.traclearn('analytics')}" class="${'active' if 'analytics' in req.path_info else ''}">
+              Analytics
+            </a>
+          </li>
+          <li py:if="req.perm.has_permission('TRACLEARN_ADMIN')">
+            <a href="${href.traclearn('admin')}" class="${'active' if 'admin' in req.path_info else ''}">
+              Admin
+            </a>
+          </li>
+        </ul>
+      </div>
+      
+      ${select('*')}
+      
+      <!-- TracLearn Footer -->
+      <div id="traclearn-footer" class="footer">
+        <p>TracLearn v${traclearn_version} - Educational Learning Management for Trac</p>
+      </div>
+    </body>
+  </py:match>
+</html>

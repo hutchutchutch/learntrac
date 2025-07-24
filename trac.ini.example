@@ -1,0 +1,190 @@
+# Example Trac configuration with TracLearn plugin
+# Copy this to your Trac environment's conf/trac.ini and adjust as needed
+
+[inherit]
+file = /path/to/global/trac.ini
+
+[project]
+name = My Learning Project
+descr = Educational project with TracLearn integration
+url = https://example.com/trac
+
+[trac]
+database = sqlite:db/trac.db
+# For PostgreSQL: database = postgres://user:password@localhost/tracdb
+# For MySQL: database = mysql://user:password@localhost/tracdb
+
+[components]
+# Enable TracLearn components
+traclearn.* = enabled
+traclearn.setup = enabled
+traclearn.components.learning_manager.* = enabled
+traclearn.components.analytics_collector.* = enabled
+traclearn.components.ai_integration.* = enabled
+traclearn.web.handlers.* = enabled
+traclearn.ticket_extensions.learning_fields.* = enabled
+
+# Disable if not using voice features
+traclearn.components.voice_interface.* = disabled
+
+[traclearn]
+# API Service Configuration
+api_enabled = true
+api_port = 8000
+api_base_url = http://localhost:8000/api/v1
+api_token = your-secure-api-token-here
+api_timeout = 30
+api_verify_ssl = true
+
+# Feature Toggles
+analytics_enabled = true
+ai_features_enabled = true
+voice_interface_enabled = false
+
+# General Settings
+default_language = en
+max_file_size = 10485760  # 10MB
+cache_ttl = 3600  # 1 hour
+
+# Python 3.11 Executable Path
+python3_executable = /usr/bin/python3.11
+
+# Database Connection for Python 3.11 Service
+# This should match your Trac database configuration
+db_bridge_enabled = true
+
+# AI Configuration
+ai_provider = openai
+ai_model = gpt-3.5-turbo
+ai_api_key = your-openai-api-key-here
+ai_temperature = 0.7
+ai_max_tokens = 1000
+
+# Analytics Settings
+analytics_retention_days = 90
+analytics_batch_size = 100
+
+# File Upload Settings
+upload_dir = /path/to/trac/env/files/traclearn
+allowed_extensions = .pdf,.doc,.docx,.txt,.md,.py,.js,.java,.cpp,.c,.jpg,.jpeg,.png,.gif,.mp4,.mp3,.wav
+
+# Email Notifications
+email_notifications_enabled = true
+email_from = traclearn@example.com
+
+[ticket-custom]
+# TracLearn custom ticket fields (automatically managed by plugin)
+learning_course = select
+learning_course.label = Learning Course
+learning_course.options = |
+learning_course.order = 100
+
+learning_type = select
+learning_type.label = Activity Type
+learning_type.options = |assignment|project|quiz|exam|discussion|lab|reading|video|resource
+learning_type.order = 101
+
+learning_points = text
+learning_points.label = Points/Credits
+learning_points.value = 0
+learning_points.order = 102
+
+learning_due_date = time
+learning_due_date.label = Due Date
+learning_due_date.order = 103
+
+learning_difficulty = select
+learning_difficulty.label = Difficulty
+learning_difficulty.options = |beginner|easy|medium|hard|expert
+learning_difficulty.value = medium
+learning_difficulty.order = 104
+
+learning_completion_status = select
+learning_completion_status.label = Completion Status
+learning_completion_status.options = not_started|in_progress|submitted|graded|completed|exempted
+learning_completion_status.value = not_started
+learning_completion_status.order = 111
+
+[ticket-workflow]
+# Additional workflow actions for learning activities
+start_learning = new,assigned,accepted,reopened -> in_progress
+start_learning.operations = set_owner_to_self
+start_learning.permissions = TRACLEARN_STUDENT
+
+submit_learning = in_progress -> pending
+submit_learning.operations = set_resolution
+submit_learning.permissions = TRACLEARN_STUDENT
+
+grade_learning = pending -> closed
+grade_learning.operations = set_resolution
+grade_learning.permissions = TRACLEARN_INSTRUCTOR
+
+request_revision = pending -> in_progress
+request_revision.operations = del_resolution
+request_revision.permissions = TRACLEARN_INSTRUCTOR
+
+[notification]
+# Email notifications for learning activities
+smtp_enabled = true
+smtp_server = localhost
+smtp_port = 25
+smtp_from = trac@example.com
+smtp_from_name = TracLearn System
+
+[logging]
+log_file = trac.log
+log_level = INFO
+log_type = file
+
+# TracLearn specific logging
+traclearn_log_file = traclearn.log
+traclearn_log_level = DEBUG
+
+[attachment]
+max_size = 10485760  # 10MB
+max_zip_size = 20971520  # 20MB
+render_unsafe_content = false
+
+[wiki]
+max_size = 262144
+render_unsafe_content = false
+
+[milestone]
+# Learning milestones
+groups = course,semester,module
+
+[query]
+default_query = status!=closed&learning_course!=
+default_anonymous_query = status!=closed&cc~=$USER&learning_course!=
+
+[report]
+# Default TracLearn reports
+items_per_page = 100
+
+[timeline]
+# Include learning events in timeline
+default_daysback = 30
+max_daysback = 90
+
+[browser]
+# Hide TracLearn internals from repository browser
+hide_properties = svk:merge,TracLearn:*
+
+[changeset]
+max_diff_bytes = 10000000
+max_diff_files = 0
+
+[roadmap]
+# Group learning activities in roadmap
+stats_provider = TracLearnTicketGroupStatsProvider
+
+[search]
+# Include learning content in search
+min_query_length = 3
+
+[headerlogo]
+alt = TracLearn - Educational Learning Management
+height = 50
+link = /traclearn
+src = site/traclearn-logo.png
+width = 200

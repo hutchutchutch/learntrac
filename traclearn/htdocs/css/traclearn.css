@@ -1,0 +1,334 @@
+/* TracLearn Main Stylesheet */
+
+/* Base Styles */
+.traclearn-dashboard {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Dashboard Header */
+.dashboard-header {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.dashboard-header h2 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.user-stats {
+    display: flex;
+    gap: 30px;
+}
+
+.stat-item {
+    color: #666;
+}
+
+/* Dashboard Sections */
+.dashboard-section {
+    background: white;
+    border: 1px solid #e1e4e8;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.dashboard-section h3 {
+    margin-top: 0;
+    color: #24292e;
+    border-bottom: 1px solid #e1e4e8;
+    padding-bottom: 10px;
+}
+
+/* Course Table */
+.enrollment-row:hover {
+    background-color: #f6f8fa;
+}
+
+.course-code {
+    font-weight: bold;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-enrolled {
+    background-color: #28a745;
+    color: white;
+}
+
+.status-completed {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.status-dropped {
+    background-color: #dc3545;
+    color: white;
+}
+
+/* Activity Timeline */
+.activity-timeline {
+    position: relative;
+    padding-left: 40px;
+}
+
+.activity-item {
+    position: relative;
+    padding-bottom: 20px;
+    border-left: 2px solid #e1e4e8;
+    padding-left: 20px;
+}
+
+.activity-item:last-child {
+    border-left: none;
+}
+
+.activity-icon {
+    position: absolute;
+    left: -30px;
+    width: 20px;
+    height: 20px;
+    background: #586069;
+    border-radius: 50%;
+    border: 3px solid white;
+}
+
+.activity-content h4 {
+    margin: 0 0 5px 0;
+    color: #24292e;
+}
+
+.activity-details {
+    color: #586069;
+    font-size: 14px;
+}
+
+.activity-time {
+    color: #999;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+/* Quick Actions */
+.quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.action-card {
+    display: block;
+    background: #f6f8fa;
+    border: 1px solid #e1e4e8;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    text-decoration: none;
+    color: #24292e;
+    transition: all 0.2s ease;
+}
+
+.action-card:hover {
+    background: #fff;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.action-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 10px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.action-icon.courses {
+    background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMzY2ZDYiIHN0cm9rZS13aWR0aD0iMiI+PHBhdGggZD0iTTQgMTloMTZ2LTExSDR6Ii8+PHBhdGggZD0iTTQgOVYzaDE2djYiLz48bGluZSB4MT0iOCIgeTE9IjEzIiB4Mj0iMTYiIHkyPSIxMyIvPjwvc3ZnPg==');
+}
+
+.action-icon.new-activity {
+    background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMyOGE3NDUiIHN0cm9rZS13aWR0aD0iMiI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiLz48bGluZSB4MT0iMTIiIHkxPSI4IiB4Mj0iMTIiIHkyPSIxNiIvPjxsaW5lIHgxPSI4IiB5MT0iMTIiIHgyPSIxNiIgeTI9IjEyIi8+PC9zdmc+');
+}
+
+.action-icon.export {
+    background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM2ZjQyYzEiIHN0cm9rZS13aWR0aD0iMiI+PHBhdGggZD0iTTIxIDE1djRhMiAyIDAgMCAxLTIgMkg1YTIgMiAwIDAgMS0yLTJ2LTQiLz48cG9seWxpbmUgcG9pbnRzPSI3IDEwIDEyIDUgMTcgMTAiLz48bGluZSB4MT0iMTIiIHkxPSI1IiB4Mj0iMTIiIHkyPSIxNSIvPjwvc3ZnPg==');
+}
+
+.action-icon.analytics {
+    background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZDdlMTQiIHN0cm9rZS13aWR0aD0iMiI+PHBhdGggZD0iTTMgM3YxOGgxOCIvPjxwYXRoIGQ9Ik03IDE2VjkiLz48cGF0aCBkPSJNMTIgMTZWNiIvPjxwYXRoIGQ9Ik0xNyAxNnYtNSIvPjwvc3ZnPg==');
+}
+
+.action-card h4 {
+    margin: 0 0 5px 0;
+    color: #24292e;
+}
+
+.action-card p {
+    margin: 0;
+    color: #586069;
+    font-size: 14px;
+}
+
+/* Chart Container */
+.chart-container {
+    position: relative;
+    height: 300px;
+    margin-top: 20px;
+}
+
+/* AI Recommendations */
+#ai-recommendations {
+    min-height: 100px;
+}
+
+.recommendation-item {
+    background: #f6f8fa;
+    border-left: 4px solid #0366d6;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+}
+
+.recommendation-item h4 {
+    margin: 0 0 5px 0;
+    color: #0366d6;
+}
+
+.recommendation-item p {
+    margin: 0;
+    color: #586069;
+}
+
+/* HTMX Indicators */
+.htmx-indicator {
+    display: none;
+    text-align: center;
+    padding: 20px;
+    color: #666;
+}
+
+.htmx-indicator.htmx-request {
+    display: block;
+}
+
+.spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #0366d6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Alerts */
+.alert {
+    padding: 12px 20px;
+    margin-bottom: 15px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+}
+
+.alert-success {
+    color: #155724;
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+}
+
+.alert-warning {
+    color: #856404;
+    background-color: #fff3cd;
+    border-color: #ffeeba;
+}
+
+.alert-error {
+    color: #721c24;
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+}
+
+/* No Data Message */
+.no-data {
+    text-align: center;
+    color: #666;
+    padding: 40px;
+    background: #f6f8fa;
+    border-radius: 8px;
+}
+
+/* TracLearn Navigation */
+#traclearn-nav {
+    background: #24292e;
+    padding: 0;
+    margin-bottom: 20px;
+}
+
+#traclearn-nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+}
+
+#traclearn-nav li {
+    margin: 0;
+}
+
+#traclearn-nav a {
+    display: block;
+    padding: 12px 20px;
+    color: #fff;
+    text-decoration: none;
+    transition: background-color 0.2s ease;
+}
+
+#traclearn-nav a:hover {
+    background-color: #444d56;
+}
+
+#traclearn-nav a.active {
+    background-color: #0366d6;
+}
+
+/* TracLearn Footer */
+#traclearn-footer {
+    margin-top: 50px;
+    padding: 20px;
+    text-align: center;
+    color: #666;
+    border-top: 1px solid #e1e4e8;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .quick-actions {
+        grid-template-columns: 1fr;
+    }
+    
+    .user-stats {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    #traclearn-nav ul {
+        flex-direction: column;
+    }
+}

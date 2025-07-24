@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:py="http://genshi.edgewall.org/"
+      xmlns:xi="http://www.w3.org/2001/XInclude">
+  <xi:include href="layout.html" />
+  <head>
+    <title>Learning Dashboard</title>
+    <link rel="stylesheet" type="text/css" href="${chrome.htdocs_location}traclearn/css/traclearn.css" />
+    <script type="text/javascript" src="${chrome.htdocs_location}traclearn/js/learning.js"></script>
+  </head>
+
+  <body>
+    <div id="content" class="traclearn-dashboard">
+      <h1>Learning Dashboard</h1>
+      
+      <div class="system-message" py:if="defined('notice')">
+        <py:for each="type, message in notices">
+          <div class="alert alert-${type}">${message}</div>
+        </py:for>
+      </div>
+
+      <!-- User Welcome Section -->
+      <div class="dashboard-header">
+        <h2>Welcome, ${user}!</h2>
+        <div class="user-stats">
+          <span class="stat-item">
+            <strong>Enrolled Courses:</strong> ${len(enrollments)}
+          </span>
+          <span class="stat-item" py:if="is_instructor">
+            <strong>Role:</strong> Instructor
+          </span>
+        </div>
+      </div>
+
+      <!-- Course Enrollments -->
+      <div class="dashboard-section">
+        <h3>My Courses</h3>
+        <py:choose test="len(enrollments)">
+          <py:when test="0">
+            <p class="no-data">You are not enrolled in any courses yet. 
+               <a href="${href.traclearn('courses')}">Browse available courses</a></p>
+          </py:when>
+          <py:otherwise>
+            <table class="listing">
+              <thead>
+                <tr>
+                  <th>Course Code</th>
+                  <th>Course Title</th>
+                  <th>Status</th>
+                  <th>Grade</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr py:for="enrollment in enrollments" class="enrollment-row">
+                  <td class="course-code">
+                    <a href="${href.traclearn('course', enrollment[1])}">${enrollment[1]}</a>
+                  </td>
+                  <td class="course-title">${enrollment[2]}</td>
+                  <td class="status">
+                    <span class="status-badge status-${enrollment[3]}">${enrollment[3]}</span>
+                  </td>
+                  <td class="grade">${enrollment[4] or '-'}</td>
+                  <td class="actions">
+                    <a href="${href.traclearn('progress', enrollment[0])}" class="button">
+                      View Progress
+                    </a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </py:otherwise>
+        </py:choose>
+      </div>
+
+      <!-- Recent Activities -->
+      <div class="dashboard-section">
+        <h3>Recent Learning Activities</h3>
+        <py:choose test="len(recent_activities)">
+          <py:when test="0">
+            <p class="no-data">No recent activities to display.</p>
+          </py:when>
+          <py:otherwise>
+            <div class="activity-timeline">
+              <div py:for="activity in recent_activities" class="activity-item">
+                <div class="activity-icon ${activity[0]}"></div>
+                <div class="activity-content">
+                  <h4>${activity[4]} - ${activity[0]}</h4>
+                  <div class="activity-details">
+                    Progress: ${activity[1]}%
+                    <py:if test="activity[2]">
+                      <span class="activity-note">${activity[2]}</span>
+                    </py:if>
+                  </div>
+                  <div class="activity-time">${format_datetime(activity[3])}</div>
+                </div>
+              </div>
+            </div>
+          </py:otherwise>
+        </py:choose>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="dashboard-section">
+        <h3>Quick Actions</h3>
+        <div class="quick-actions">
+          <a href="${href.traclearn('courses')}" class="action-card">
+            <div class="action-icon courses"></div>
+            <h4>Browse Courses</h4>
+            <p>Explore available courses and enroll</p>
+          </a>
+          
+          <a href="${href.newticket()}?learning_course=true" class="action-card">
+            <div class="action-icon new-activity"></div>
+            <h4>Create Activity</h4>
+            <p>Create a new learning activity ticket</p>
+          </a>
+          
+          <a href="${href.traclearn('data')}?type=progress" class="action-card">
+            <div class="action-icon export"></div>
+            <h4>Export Data</h4>
+            <p>Download your learning progress</p>
+          </a>
+          
+          <py:if test="is_instructor">
+            <a href="${href.traclearn('analytics')}" class="action-card">
+              <div class="action-icon analytics"></div>
+              <h4>View Analytics</h4>
+              <p>Course analytics and insights</p>
+            </a>
+          </py:if>
+        </div>
+      </div>
+
+      <!-- AI Recommendations (HTMX) -->
+      <div class="dashboard-section">
+        <h3>AI Recommendations</h3>
+        <div id="ai-recommendations" 
+             hx-get="${href.traclearn('ajax')}?action=get_recommendations"
+             hx-trigger="load"
+             hx-indicator="#recommendation-spinner">
+          <div id="recommendation-spinner" class="htmx-indicator">
+            <span class="spinner"></span> Loading recommendations...
+          </div>
+        </div>
+      </div>
+
+      <!-- Progress Chart -->
+      <div class="dashboard-section">
+        <h3>Learning Progress Overview</h3>
+        <div id="progress-chart" class="chart-container">
+          <canvas id="progressCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <script type="text/javascript">
+      jQuery(document).ready(function($) {
+        // Initialize dashboard
+        TracLearn.initDashboard();
+        
+        // Load progress chart
+        TracLearn.loadProgressChart('progressCanvas', ${json.dumps(enrollments)});
+        
+        // Handle enrollment actions
+        $('.enrollment-action').on('click', function(e) {
+          e.preventDefault();
+          var action = $(this).data('action');
+          var courseId = $(this).data('course-id');
+          TracLearn.handleEnrollmentAction(action, courseId);
+        });
+      });
+    </script>
+  </body>
+</html>
