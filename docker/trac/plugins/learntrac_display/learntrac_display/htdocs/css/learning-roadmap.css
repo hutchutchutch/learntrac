@@ -1,0 +1,506 @@
+/* Learning Roadmap Styles */
+
+.roadmap {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Overall Progress Section */
+.overall-progress-section {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 25px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.progress-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.stat-card {
+    background: white;
+    padding: 20px;
+    border-radius: 6px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.stat-card h3 {
+    font-size: 14px;
+    color: #666;
+    margin: 0 0 10px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.big-number {
+    font-size: 36px;
+    font-weight: bold;
+    color: #2e5266;
+    margin: 10px 0;
+}
+
+.stat-detail {
+    font-size: 14px;
+    color: #666;
+}
+
+/* Cohort Comparison */
+.cohort-comparison {
+    margin-top: 20px;
+    padding: 15px;
+    background: #e8f4f8;
+    border-radius: 6px;
+}
+
+.comparison-metric {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.metric-label {
+    font-weight: 500;
+}
+
+.metric-value {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.above-average {
+    color: #27ae60;
+}
+
+.below-average {
+    color: #e74c3c;
+}
+
+/* Milestones Section */
+.milestones-section {
+    margin-bottom: 40px;
+}
+
+.milestone-filter {
+    margin-bottom: 20px;
+}
+
+.milestone-filter select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.milestones-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 25px;
+}
+
+.milestone-card {
+    background: white;
+    border: 1px solid #e1e4e8;
+    border-radius: 8px;
+    padding: 20px;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.milestone-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.milestone-title {
+    font-size: 18px;
+    margin: 0 0 10px 0;
+}
+
+.milestone-title a {
+    color: #2e5266;
+    text-decoration: none;
+}
+
+.milestone-title a:hover {
+    color: #1a3a47;
+    text-decoration: underline;
+}
+
+.milestone-due {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 15px;
+}
+
+/* Progress Bar */
+.progress-container {
+    margin: 15px 0;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 24px;
+    background: #e9ecef;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-fill {
+    height: 100%;
+    float: left;
+    transition: width 1s ease-out;
+}
+
+.progress-fill.completed {
+    background: #27ae60;
+}
+
+.progress-fill.in-progress {
+    background: #f39c12;
+}
+
+.progress-text {
+    text-align: center;
+    margin-top: 8px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* Milestone Stats */
+.milestone-stats {
+    display: flex;
+    justify-content: space-around;
+    margin: 20px 0;
+    padding: 15px 0;
+    border-top: 1px solid #e9ecef;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.milestone-stats .stat {
+    text-align: center;
+}
+
+.stat-value {
+    display: block;
+    font-size: 24px;
+    font-weight: bold;
+    color: #2e5266;
+}
+
+.stat-label {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    text-transform: uppercase;
+    margin-top: 5px;
+}
+
+.milestone-score {
+    text-align: center;
+    margin: 10px 0;
+    font-size: 14px;
+}
+
+.estimated-completion {
+    text-align: center;
+    font-size: 13px;
+    color: #666;
+    margin: 10px 0;
+}
+
+/* Milestone Actions */
+.milestone-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.milestone-actions .button {
+    flex: 1;
+    text-align: center;
+    padding: 8px 12px;
+    background: #2e5266;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 13px;
+    transition: background 0.2s;
+}
+
+.milestone-actions .button:hover {
+    background: #1a3a47;
+}
+
+/* Learning Paths Section */
+.learning-paths-section {
+    background: #f8f9fa;
+    padding: 25px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+}
+
+.paths-list {
+    display: grid;
+    gap: 15px;
+}
+
+.path-item {
+    background: white;
+    padding: 15px;
+    border-radius: 6px;
+    border-left: 4px solid #ddd;
+    transition: all 0.2s;
+}
+
+.path-item.completed {
+    border-left-color: #27ae60;
+}
+
+.path-item.in_progress {
+    border-left-color: #f39c12;
+}
+
+.path-item.not-started {
+    border-left-color: #95a5a6;
+}
+
+.path-item h4 {
+    margin: 0 0 10px 0;
+    color: #2e5266;
+}
+
+.path-details {
+    display: flex;
+    gap: 20px;
+    font-size: 14px;
+    color: #666;
+}
+
+.path-status {
+    font-weight: 500;
+}
+
+.path-link {
+    display: inline-block;
+    margin-top: 10px;
+    color: #3498db;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.path-link:hover {
+    text-decoration: underline;
+}
+
+/* Export Section */
+.export-section {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #e1e4e8;
+    text-align: center;
+}
+
+.export-section h3 {
+    margin: 0 0 15px 0;
+    font-size: 18px;
+}
+
+.export-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.export-buttons .button {
+    padding: 10px 20px;
+    background: #2e5266;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.export-buttons .button:hover {
+    background: #1a3a47;
+}
+
+/* Mini Progress Bars */
+.mini-progress-bar {
+    display: inline-block;
+    width: 60px;
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+    vertical-align: middle;
+    margin-left: 5px;
+}
+
+.mini-progress-fill {
+    display: block;
+    height: 100%;
+    transition: width 0.5s ease;
+}
+
+/* Circular Progress */
+.circular-progress {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.circular-progress circle {
+    transition: stroke-dashoffset 1s ease-out;
+}
+
+/* Mastery Badges */
+.mastery-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 16px;
+    color: white;
+    font-size: 12px;
+    font-weight: 500;
+    margin: 2px;
+}
+
+.badge-icon {
+    margin-right: 4px;
+}
+
+.badge-score {
+    opacity: 0.9;
+    font-size: 11px;
+}
+
+/* Streak Indicators */
+.streak-indicator {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    gap: 6px;
+}
+
+.streak-indicator.inactive {
+    background: #e9ecef;
+    color: #6c757d;
+}
+
+.streak-indicator.active {
+    color: white;
+}
+
+.streak-start {
+    background: #f39c12;
+}
+
+.streak-warm {
+    background: #e67e22;
+}
+
+.streak-hot {
+    background: #e74c3c;
+}
+
+.streak-fire {
+    background: linear-gradient(45deg, #e74c3c, #f39c12);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* Time Distribution Chart */
+.time-distribution-chart {
+    margin: 20px 0;
+    padding: 15px;
+    background: white;
+    border-radius: 6px;
+}
+
+.chart-row {
+    margin-bottom: 12px;
+}
+
+.chart-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+    font-size: 13px;
+}
+
+.milestone-label {
+    font-weight: 500;
+    color: #2e5266;
+}
+
+.time-label {
+    color: #666;
+}
+
+.time-bar-container {
+    width: 100%;
+    height: 20px;
+    background: #e9ecef;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.time-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #3498db, #2980b9);
+    transition: width 1s ease-out;
+}
+
+/* Additional Progress Styling */
+.progress-container.empty .progress-bar {
+    background: #f8f9fa;
+    border: 1px dashed #dee2e6;
+}
+
+.progress-text.no-data {
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .milestones-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .milestone-actions {
+        flex-direction: column;
+    }
+    
+    .export-buttons {
+        flex-direction: column;
+    }
+    
+    .path-details {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .time-distribution-chart {
+        padding: 10px;
+    }
+    
+    .chart-labels {
+        font-size: 12px;
+    }
+}

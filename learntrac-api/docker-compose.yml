@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  learntrac-api:
+    build: .
+    container_name: learntrac-api
+    ports:
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=redis://redis:6379
+      - NEO4J_URI=${NEO4J_URI}
+      - NEO4J_USER=${NEO4J_USER}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD}
+      - AWS_REGION=${AWS_REGION}
+      - COGNITO_POOL_ID=${COGNITO_POOL_ID}
+      - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LOG_LEVEL=INFO
+      - ENVIRONMENT=development
+    depends_on:
+      - redis
+    volumes:
+      - ./src:/app/src:ro
+    networks:
+      - learntrac
+
+  redis:
+    image: redis:7-alpine
+    container_name: learntrac-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - learntrac
+
+volumes:
+  redis-data:
+
+networks:
+  learntrac:
+    driver: bridge

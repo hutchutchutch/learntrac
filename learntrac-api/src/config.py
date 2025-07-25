@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     # API Keys
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
     
+    # Logging
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    
+    # Environment
+    environment: str = os.getenv("ENVIRONMENT", "development")
+    
     class Config:
         env_file = ".env"
 

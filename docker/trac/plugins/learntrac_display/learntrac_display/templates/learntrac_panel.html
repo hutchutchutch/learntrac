@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:py="http://genshi.edgewall.org/"
+      xmlns:xi="http://www.w3.org/2001/XInclude">
+  <py:match path="head" once="true">
+    <head py:attrs="select('@*')">
+      ${select('*')}
+    </head>
+  </py:match>
+  
+  <!-- Learning Questions Panel Template -->
+  <div id="learntrac-panel" class="learntrac-questions" py:if="questions">
+    <h2 class="learntrac-header">Learning Questions</h2>
+    <div class="learntrac-intro">
+      <p>Test your understanding of this ${len(questions)} concept(s):</p>
+    </div>
+    
+    <div id="learntrac-questions-container">
+      <div py:for="idx, question in enumerate(questions)" 
+           class="learntrac-question question-${question.difficulty}"
+           data-question-id="${question.id}">
+        
+        <h3 class="question-number">Question ${idx + 1}</h3>
+        <p class="question-text">${question.question}</p>
+        
+        <!-- Multiple Choice Question -->
+        <div py:if="question.type == 'multiple_choice' and 'options' in question" 
+             class="question-options">
+          <div py:for="opt_idx, option in enumerate(question.options)" 
+               class="option-item">
+            <input type="radio" 
+                   name="question_${question.id}" 
+                   id="q${question.id}_opt${opt_idx}"
+                   value="${opt_idx}" />
+            <label for="q${question.id}_opt${opt_idx}">${option}</label>
+          </div>
+        </div>
+        
+        <!-- Open Ended Question -->
+        <textarea py:if="question.type == 'open_ended'"
+                  placeholder="Enter your answer here..."
+                  class="answer-textarea"
+                  id="answer_${question.id}"
+                  rows="4"></textarea>
+      </div>
+    </div>
+    
+    <div class="learntrac-actions">
+      <button id="learntrac-submit" 
+              class="learntrac-submit-btn"
+              data-ticket-id="${ticket.id}">
+        Submit Answers
+      </button>
+    </div>
+  </div>
+</html>

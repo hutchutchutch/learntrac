@@ -1,64 +1,72 @@
 version: '3.8'
 
 services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: learntrac-postgres
+    environment:
+      - POSTGRES_DB=learntrac
+      - POSTGRES_USER=learntrac_admin
+      - POSTGRES_PASSWORD=learntrac_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./learntrac-infrastructure/database/init:/docker-entrypoint-initdb.d
+    networks:
+      - learntrac-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U learntrac_admin -d learntrac"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Trac Service
   trac:
-    build: ./docker/trac
-    image: learntrac/trac:test
-    container_name: trac-test
+    image: learntrac-trac:test
+    container_name: learntrac-trac
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://learntrac_admin:learntrac_password@postgres:5432/learntrac
+      - TRAC_ENV=/var/trac/projects/learntrac
     ports:
       - "8000:8000"
-    environment:
-      - TRAC_ENV=/var/trac/projects
-      - DATABASE_URL=${DATABASE_URL_TRAC:-sqlite:///var/trac/projects/trac.db}
-      - COGNITO_DOMAIN=${COGNITO_DOMAIN:-hutch-learntrac-dev-auth}
-      - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}
-      - AWS_REGION=${AWS_REGION:-us-east-2}
-      - PYTHONPATH=/app/plugins:$PYTHONPATH
-    healthcheck:
-      test: ["CMD", "python", "/usr/local/bin/health-check.py"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
-      start_period: 40s
     volumes:
       - trac-data:/var/trac/projects
+      - ./plugins/learntrac_display:/app/plugins/learntrac_display
     networks:
       - learntrac-network
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
+  # Learning Service API
   api:
-    build: ./docker/learntrac
     image: learntrac/api:test
-    container_name: learntrac-test
+    container_name: learntrac-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://learntrac_admin:learntrac_password@postgres:5432/learntrac
+      - DB_USER=learntrac_admin
+      - DB_PASSWORD=learntrac_password
+      - RDS_ENDPOINT=postgres:5432
+      - DB_NAME=learntrac
+      - COGNITO_USER_POOL_ID=test-pool
+      - COGNITO_CLIENT_ID=test-client
+      - COGNITO_DOMAIN=test-domain
+      - AWS_REGION=us-east-2
     ports:
       - "8001:8001"
-    environment:
-      - ENVIRONMENT=local
-      - DATABASE_URL=${DATABASE_URL_API:-postgresql://learntrac:learntrac@postgres:5432/learntrac}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
-      - AWS_REGION=${AWS_REGION:-us-east-2}
-      - COGNITO_POOL_ID=${COGNITO_POOL_ID}
-      - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}
-      - COGNITO_DOMAIN=${COGNITO_DOMAIN:-hutch-learntrac-dev-auth}
-      - REDIRECT_URI=http://localhost:8001/auth/callback
-      - LOGOUT_URI=http://localhost:8001/
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
-      start_period: 40s
-    depends_on:
-      - trac
     networks:
       - learntrac-network
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-volumes:
-  trac-data:
+    command: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
 
 networks:
   learntrac-network:
     driver: bridge
+
+volumes:
+  postgres-data:
+  trac-data:

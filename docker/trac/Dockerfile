@@ -12,6 +12,9 @@ RUN apt-get update && apt-get install -y \
     git \
     subversion \
     curl \
+    # GraphViz for knowledge graph generation
+    graphviz \
+    graphviz-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -29,10 +32,8 @@ RUN pip install --no-cache-dir \
 RUN mkdir -p /var/trac/projects
 
 # Copy configuration and scripts
-COPY scripts/start-trac.sh /usr/local/bin/
-COPY scripts/init-trac.py /usr/local/bin/
-COPY config/trac.ini.template /app/config/
-COPY config/trac.ini /app/config/
+COPY scripts/ /app/scripts/
+COPY config/ /app/config/
 
 # Copy plugins
 COPY plugins/ /app/plugins/
@@ -40,11 +41,12 @@ COPY plugins/ /app/plugins/
 # Copy templates
 COPY templates/ /app/templates/
 
-RUN chmod +x /usr/local/bin/start-trac.sh
+# Make scripts executable
+RUN chmod +x /app/scripts/*.sh
 
-# Create health check script
-COPY scripts/health-check.py /usr/local/bin/
-RUN chmod +x /usr/local/bin/health-check.py
+# Legacy script locations for backward compatibility
+RUN ln -s /app/scripts/start-trac.sh /usr/local/bin/start-trac.sh && \
+    ln -s /app/scripts/health-check-trac.sh /usr/local/bin/health-check.py
 
 EXPOSE 8000
 

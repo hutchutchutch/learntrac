@@ -1,0 +1,386 @@
+/* LearnTrac Display Plugin Styles */
+
+/* Main Learning Panel */
+.learntrac-panel {
+    margin: 20px 0;
+    padding: 0;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.learning-question-panel {
+    padding: 20px;
+}
+
+.learning-header {
+    color: #2c5aa0;
+    margin: 0 0 20px 0;
+    font-size: 1.4em;
+    border-bottom: 2px solid #2c5aa0;
+    padding-bottom: 10px;
+    display: flex;
+    align-items: center;
+}
+
+.learning-header::before {
+    content: "🎯";
+    margin-right: 10px;
+    font-size: 1.2em;
+}
+
+/* Question Content */
+.question-content {
+    margin-bottom: 25px;
+}
+
+.question-text {
+    font-size: 1.1em;
+    line-height: 1.6;
+    margin-bottom: 15px;
+    padding: 15px;
+    background-color: white;
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+    border-left: 4px solid #2c5aa0;
+}
+
+.question-meta {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+    font-size: 0.9em;
+}
+
+.difficulty-badge {
+    background-color: #ffc107;
+    color: #212529;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.context-info {
+    background-color: #e9ecef;
+    color: #495057;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* Answer Section */
+.answer-section {
+    background-color: white;
+    padding: 20px;
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+    margin-bottom: 20px;
+}
+
+.answer-section h4 {
+    color: #495057;
+    margin: 0 0 15px 0;
+    font-size: 1.1em;
+}
+
+.answer-form {
+    position: relative;
+}
+
+.answer-textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 12px;
+    border: 2px solid #dee2e6;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.95em;
+    line-height: 1.5;
+    resize: vertical;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+}
+
+.answer-textarea:focus {
+    outline: none;
+    border-color: #2c5aa0;
+    box-shadow: 0 0 0 3px rgba(44, 90, 160, 0.1);
+}
+
+.answer-textarea:disabled {
+    background-color: #f8f9fa;
+    border-color: #e9ecef;
+    color: #6c757d;
+}
+
+.answer-actions {
+    margin-top: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.learntrac-submit-btn {
+    background-color: #2c5aa0;
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    font-size: 1em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    min-width: 140px;
+}
+
+.learntrac-submit-btn:hover:not(:disabled) {
+    background-color: #1e3d6f;
+    transform: translateY(-1px);
+}
+
+.learntrac-submit-btn:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.learntrac-submit-btn.disabled {
+    background-color: #28a745;
+    cursor: default;
+}
+
+/* Time Tracking */
+.time-spent-display {
+    font-size: 0.9em;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+}
+
+.time-spent-display::before {
+    content: "⏱️";
+    margin-right: 5px;
+}
+
+.time-value {
+    font-weight: 500;
+    color: #495057;
+}
+
+.draft-saved-indicator {
+    font-size: 0.8em;
+    color: #28a745;
+    font-style: italic;
+    display: none;
+}
+
+/* Previous Attempts */
+.previous-attempts {
+    background-color: white;
+    padding: 20px;
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+    margin-bottom: 15px;
+}
+
+.previous-attempts h4 {
+    color: #495057;
+    margin: 0 0 15px 0;
+    font-size: 1.1em;
+    display: flex;
+    align-items: center;
+}
+
+.previous-attempts h4::before {
+    content: "📊";
+    margin-right: 8px;
+}
+
+.progress-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.progress-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+}
+
+.progress-item strong {
+    min-width: 120px;
+    color: #495057;
+    font-size: 0.9em;
+}
+
+.status-value {
+    text-transform: capitalize;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.85em;
+}
+
+.status-value:contains("completed") {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-value:contains("in_progress") {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.status-value:contains("not_started") {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.attempts-value, .time-value, .score-value, .date-value {
+    font-weight: 500;
+    color: #2c5aa0;
+}
+
+/* Messages */
+.learntrac-message {
+    padding: 12px 16px;
+    margin: 15px 0;
+    border-radius: 6px;
+    font-weight: 500;
+    display: block;
+    animation: slideIn 0.3s ease-out;
+}
+
+.learntrac-message .message-icon {
+    margin-right: 10px;
+    font-size: 1.2em;
+}
+
+.message-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.message-success .message-icon::before {
+    content: "✅";
+}
+
+.message-error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.message-error .message-icon::before {
+    content: "❌";
+}
+
+.submission-status {
+    min-height: 20px;
+    margin-top: 10px;
+}
+
+/* Animations */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .learntrac-panel {
+        margin: 10px 0;
+    }
+    
+    .learning-question-panel {
+        padding: 15px;
+    }
+    
+    .question-meta {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .progress-info {
+        grid-template-columns: 1fr;
+    }
+    
+    .answer-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .learntrac-submit-btn {
+        width: 100%;
+    }
+}
+
+/* Focus and Accessibility */
+.learntrac-submit-btn:focus {
+    outline: 2px solid #2c5aa0;
+    outline-offset: 2px;
+}
+
+.answer-textarea:focus {
+    border-color: #2c5aa0;
+    box-shadow: 0 0 0 3px rgba(44, 90, 160, 0.1);
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .learntrac-panel {
+        border-color: #000;
+    }
+    
+    .learning-header {
+        color: #000;
+        border-bottom-color: #000;
+    }
+    
+    .learntrac-submit-btn {
+        border: 2px solid #000;
+    }
+}
+
+/* Dark mode support (if Trac supports it) */
+@media (prefers-color-scheme: dark) {
+    .learntrac-panel {
+        background-color: #2d3748;
+        border-color: #4a5568;
+        color: #e2e8f0;
+    }
+    
+    .learning-question-panel,
+    .answer-section,
+    .previous-attempts {
+        background-color: #374151;
+        border-color: #4a5568;
+    }
+    
+    .question-text {
+        background-color: #374151;
+        border-color: #4a5568;
+        color: #e2e8f0;
+    }
+    
+    .answer-textarea {
+        background-color: #374151;
+        border-color: #4a5568;
+        color: #e2e8f0;
+    }
+    
+    .answer-textarea:focus {
+        border-color: #63b3ed;
+        box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.1);
+    }
+}

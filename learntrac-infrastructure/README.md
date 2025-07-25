@@ -2,42 +2,423 @@
 
 This directory contains all Terraform configurations and management scripts for the LearnTrac AWS infrastructure.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Prerequisites](#prerequisites)
+- [Quick Start](#quick-start)
+- [Architecture](#architecture)
+- [Components](#components)
+- [Configuration](#configuration)
+- [Operations](#operations)
+- [Troubleshooting](#troubleshooting)
+- [Security](#security)
+- [Additional Documentation](#additional-documentation)
+
+## Overview
+
+LearnTrac is a learning management system built on top of Trac, integrating modern cloud services for enhanced educational features. The infrastructure includes:
+
+- **AWS Cognito** for user authentication
+- **RDS PostgreSQL** for data persistence
+- **ElastiCache Redis** for session management
+- **ECS Fargate** for containerized services
+- **Application Load Balancer** for traffic distribution
+- **VPC Endpoints** for secure AWS service access
+
+## Prerequisites
+
+### Required Tools
+
+- **Terraform** >= 1.0
+- **AWS CLI** >= 2.0
+- **Docker** >= 20.10
+- **PostgreSQL client** (psql)
+- **Git**
+- **jq** (for JSON processing)
+
+### AWS Account Setup
+
+1. AWS account with appropriate permissions
+2. IAM user with programmatic access
+3. Configured AWS CLI profile:
+   ```bash
+   aws configure
+   # Enter your AWS Access Key ID
+   # Enter your AWS Secret Access Key
+   # Default region: us-east-2
+   # Default output format: json
+   ```
+
 ## Quick Start
 
-1. Initialize Terraform:
+### 1. Clone Repository
+
+```bash
+git clone https://github.com/your-org/learntrac.git
+cd learntrac/learntrac-infrastructure
+```
+
+### 2. Configure Environment
+
+```bash
+# Copy example configuration
+cp terraform.tfvars.example terraform.tfvars
+
+# Edit with your values
+vim terraform.tfvars
+# Update allowed_ip with your current IP address
+```
+
+### 3. Initialize and Deploy Infrastructure
+
+```bash
+# Initialize Terraform
+terraform init
+
+# Review planned changes
+terraform plan
+
+# Apply infrastructure (takes ~10-15 minutes)
+terraform apply
+
+# Save outputs for later use
+terraform output -json > infrastructure-outputs.json
+```
+
+### 4. Initialize Databases
+
+```bash
+# Initialize Trac database schema
+./database/initialize_trac_db.sh
+
+# Initialize learning schema
+./database/initialize_learning_schema.sh
+
+# Verify schemas
+./scripts/validate-infrastructure.sh
+```
+
+### 5. Build and Deploy Applications
+
+```bash
+# Login to ECR
+aws ecr get-login-password --region us-east-2 | \
+  docker login --username AWS --password-stdin \
+  $(terraform output -raw trac_ecr_repository_url | cut -d'/' -f1)
+
+# Build and push Trac container
+cd docker/trac
+docker build -t $(terraform output -raw trac_ecr_repository_url):latest .
+docker push $(terraform output -raw trac_ecr_repository_url):latest
+
+# Build and push LearnTrac API container
+cd ../learntrac
+docker build -t $(terraform output -raw learntrac_ecr_repository_url):latest .
+docker push $(terraform output -raw learntrac_ecr_repository_url):latest
+
+# Update ECS services
+aws ecs update-service \
+  --cluster $(terraform output -raw ecs_cluster_name) \
+  --service trac-service \
+  --force-new-deployment
+
+aws ecs update-service \
+  --cluster $(terraform output -raw ecs_cluster_name) \
+  --service learntrac-service \
+  --force-new-deployment
+```
+
+### 6. Access Application
+
+```bash
+# Get application URL
+echo "Application URL: $(terraform output -raw alb_url)"
+
+# Test endpoints
+curl $(terraform output -raw alb_url)/health
+curl $(terraform output -raw alb_url)/trac/
+curl $(terraform output -raw alb_url)/api/learntrac/health
+```
+
+## Architecture
+
+For detailed architecture diagrams, see [ARCHITECTURE_DIAGRAM.md](./ARCHITECTURE_DIAGRAM.md)
+
+### High-Level Overview
+
+```
+Internet → ALB → ECS Tasks → Backend Services
+                     ↓
+              [Trac, LearnTrac API]
+                     ↓
+         [RDS, Redis, Cognito, External APIs]
+```
+
+## Components
+
+### Core Services
+
+| Component | Purpose | Access |
+|-----------|---------|--------|
+| RDS PostgreSQL | Primary database | Port 5432 |
+| ElastiCache Redis | Session cache | Port 6379 |
+| AWS Cognito | User authentication | HTTPS API |
+| ECS Fargate | Container hosting | Via ALB |
+| ALB | Load balancing | Port 80/443 |
+
+### Resource Naming Convention
+
+All resources follow the pattern: `{owner}-{project}-{environment}-{resource}`
+
+Examples:
+- RDS: `hutch-learntrac-dev-db`
+- ALB: `hutch-learntrac-dev-alb`
+- ECS Cluster: `hutch-learntrac-dev-cluster`
+
+## Configuration
+
+### Terraform Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `aws_region` | AWS region | us-east-2 |
+| `environment` | Environment name | dev |
+| `allowed_ip` | Your IP for DB access | Required |
+| `db_instance_class` | RDS instance type | db.t3.micro |
+| `db_allocated_storage` | Storage in GB | 20 |
+
+### Environment-Specific Settings
+
+```bash
+# Development
+cp environments/dev/terraform.tfvars terraform.tfvars
+
+# Production
+cp environments/prod/terraform.tfvars terraform.tfvars
+```
+
+## Operations
+
+### Daily Operations
+
+```bash
+# Check infrastructure status
+./scripts/validate-infrastructure.sh
+
+# View ECS task logs
+aws logs tail /ecs/hutch-learntrac-dev/trac --follow
+
+# Monitor RDS connections
+aws cloudwatch get-metric-statistics \
+  --namespace AWS/RDS \
+  --metric-name DatabaseConnections \
+  --dimensions Name=DBInstanceIdentifier,Value=hutch-learntrac-dev-db \
+  --start-time $(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%S) \
+  --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
+  --period 300 \
+  --statistics Average
+```
+
+### Backup and Recovery
+
+```bash
+# Create manual RDS snapshot
+aws rds create-db-snapshot \
+  --db-instance-identifier hutch-learntrac-dev-db \
+  --db-snapshot-identifier hutch-learntrac-dev-manual-$(date +%Y%m%d)
+
+# List snapshots
+aws rds describe-db-snapshots \
+  --db-instance-identifier hutch-learntrac-dev-db
+```
+
+### Scaling Operations
+
+```bash
+# Scale ECS service
+aws ecs update-service \
+  --cluster hutch-learntrac-dev-cluster \
+  --service trac-service \
+  --desired-count 3
+
+# Resize RDS instance (requires downtime)
+aws rds modify-db-instance \
+  --db-instance-identifier hutch-learntrac-dev-db \
+  --db-instance-class db.t3.small \
+  --apply-immediately
+```
+
+## Troubleshooting
+
+For detailed troubleshooting, see [INFRASTRUCTURE_REFERENCE.md](./INFRASTRUCTURE_REFERENCE.md#troubleshooting-guide)
+
+### Common Issues
+
+1. **Cannot connect to RDS**
    ```bash
-   terraform init
+   # Update security group with your current IP
+   MY_IP=$(curl -s https://checkip.amazonaws.com)
+   aws ec2 authorize-security-group-ingress \
+     --group-id $(terraform output -raw security_group_id) \
+     --protocol tcp \
+     --port 5432 \
+     --cidr $MY_IP/32
+   ```
 
-2. Review planned changes:
+2. **ECS tasks not starting**
    ```bash
-    terraform plan
+   # Check task status
+   aws ecs list-tasks \
+     --cluster hutch-learntrac-dev-cluster \
+     --service-name trac-service
+   
+   # View task details
+   aws ecs describe-tasks \
+     --cluster hutch-learntrac-dev-cluster \
+     --tasks [TASK_ARN]
+   ```
 
-3. Apply infrastructure:
+3. **ALB health checks failing**
    ```bash
-    terraform apply
+   # Check target health
+   aws elbv2 describe-target-health \
+     --target-group-arn [TARGET_GROUP_ARN]
+   ```
 
-4. Get database connection string:
-   ```bash
-    terraform output -raw rds_connection_string
+## Security
 
-Resource Naming Convention
-All resources follow the pattern: learntrac-{environment}-{resource-type}
+For comprehensive security documentation, see [SECURITY_AND_NETWORK_GUIDE.md](./SECURITY_AND_NETWORK_GUIDE.md)
 
-RDS Instance: learntrac-dev-db
-Security Group: learntrac-dev-rds-sg
-DB Subnet Group: learntrac-dev-subnet-group
-Secrets: learntrac-dev-db-credentials
+### Key Security Features
 
-Management Scripts
+- ✅ Encryption at rest for RDS and secrets
+- ✅ TLS/SSL for data in transit
+- ✅ IAM roles for service authentication
+- ✅ VPC isolation with security groups
+- ✅ Secrets managed via AWS Secrets Manager
+- ✅ JWT token-based authentication
 
-list-learntrac-resources.sh - List all LearnTrac AWS resources
-terraform destroy - Remove all infrastructure
+### Security Best Practices
 
-Environment Variables
+1. Regularly rotate secrets
+2. Review security group rules monthly
+3. Enable CloudTrail for audit logging
+4. Use VPC endpoints for AWS service access
+5. Implement least privilege IAM policies
 
-PROJECT_NAME: learntrac
-ENVIRONMENT: dev/staging/prod
-AWS_REGION: us-east-2
+## Additional Documentation
+
+| Document | Description |
+|----------|-------------|
+| [INFRASTRUCTURE_REFERENCE.md](./INFRASTRUCTURE_REFERENCE.md) | Detailed resource reference and runbooks |
+| [ARCHITECTURE_DIAGRAM.md](./ARCHITECTURE_DIAGRAM.md) | Visual architecture diagrams |
+| [SECURITY_AND_NETWORK_GUIDE.md](./SECURITY_AND_NETWORK_GUIDE.md) | Security configuration and network flows |
+| [database/README.md](./database/README.md) | Database setup and migration guides |
+| [docker/README.md](./docker/README.md) | Container build instructions |
+
+## Management Scripts
+
+### Infrastructure Management
+
+- `list-learntrac-resources.sh` - List all AWS resources
+- `scripts/validate-infrastructure.sh` - Validate infrastructure health
+- `scripts/apply-terraform-staged.sh` - Apply changes in stages
+- `scripts/test_network_connectivity.sh` - Test network connectivity
+
+### Database Scripts
+
+- `database/initialize_trac_db.sh` - Initialize Trac schema
+- `database/initialize_learning_schema.sh` - Initialize learning tables
+- `scripts/test_redis_connection.py` - Test Redis connectivity
+
+### Validation Scripts
+
+- `validate-rds.sh` - Validate RDS configuration
+- `scripts/validate-elasticache.sh` - Validate Redis setup
+- `test-api-gateway.sh` - Test API Gateway endpoints
+
+## Environment Variables
+
+### Required for Terraform
+
+```bash
+export TF_VAR_allowed_ip=$(curl -s https://checkip.amazonaws.com)
+export TF_VAR_environment=dev
+export TF_VAR_aws_region=us-east-2
+```
+
+### Required for Applications
+
+```bash
+# Database
+export DATABASE_URL=$(terraform output -raw rds_connection_string)
+
+# Redis
+export REDIS_URL=redis://$(terraform output -raw redis_endpoint):6379
+
+# Cognito
+export COGNITO_POOL_ID=$(terraform output -raw cognito_user_pool_id)
+export COGNITO_CLIENT_ID=$(terraform output -raw cognito_client_id)
+
+# AWS Region
+export AWS_REGION=us-east-2
+```
+
+## Maintenance
+
+### Regular Tasks
+
+- **Daily**: Check CloudWatch logs and metrics
+- **Weekly**: Verify backups and test restoration
+- **Monthly**: Review security groups and IAM policies
+- **Quarterly**: Update dependencies and patch systems
+
+### Monitoring Setup
+
+```bash
+# Create CloudWatch dashboard
+aws cloudwatch put-dashboard \
+  --dashboard-name LearnTracDev \
+  --dashboard-body file://monitoring/dashboard.json
+```
+
+## Cost Optimization
+
+### Current Monthly Costs (Estimated)
+
+- RDS: ~$15 (db.t3.micro)
+- ECS: ~$30 (2 services)
+- ALB: ~$20
+- ElastiCache: ~$15
+- Data Transfer: ~$10
+- **Total**: ~$90/month
+
+### Cost Saving Tips
+
+1. Use RDS instance scheduler for dev environments
+2. Implement auto-scaling for ECS services
+3. Use S3 lifecycle policies for logs
+4. Consider Reserved Instances for production
+
+## Support and Contribution
+
+### Getting Help
+
+- Check [Troubleshooting Guide](./INFRASTRUCTURE_REFERENCE.md#troubleshooting-guide)
+- Review [AWS Service Documentation](https://docs.aws.amazon.com/)
+- Contact: [Development Team Email]
+
+### Contributing
+
+1. Create feature branch
+2. Make changes and test locally
+3. Run `terraform plan` to verify
+4. Submit pull request with detailed description
+
+---
+
+For detailed technical documentation, refer to the additional documentation files listed above.
 
 ## Terraform Configuration Files
 

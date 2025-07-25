@@ -1,0 +1,1896 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Update AWS Infrastructure Configuration",
+        "description": "Update existing AWS Terraform configuration in /learntrac-infrastructure and ensure all resources are properly configured based on current infrastructure status.",
+        "details": "1. Review existing Terraform files in /learntrac-infrastructure directory\n2. Update AWS Cognito User Pool configuration if needed\n3. Verify API Gateway setup with Cognito authorizer\n4. Check RDS PostgreSQL 15 instance configuration\n5. Validate ElastiCache Redis cluster setup\n6. Ensure Trac 1.4.4 database schema is properly initialized\n7. Create learning schema namespace in existing RDS instance\n8. Verify security groups and VPC networking configuration",
+        "testStrategy": "Verify Cognito authentication works, API Gateway routes requests correctly, RDS accepts connections, ElastiCache is accessible, and all Trac tables are created successfully using existing infrastructure.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Audit Existing Terraform Configuration",
+            "description": "Review and document all existing Terraform files in /learntrac-infrastructure directory to understand current AWS resource configurations",
+            "dependencies": [],
+            "details": "Navigate to /learntrac-infrastructure and systematically review all .tf files including main.tf, variables.tf, outputs.tf, and any module-specific files. Document the current state of AWS resources including VPC, subnets, security groups, RDS, ElastiCache, Cognito, and API Gateway configurations. Create a checklist of resources that need updates or validation.",
+            "status": "done",
+            "testStrategy": "Run terraform plan to ensure configuration is valid and compare against actual AWS resources using AWS CLI or console"
+          },
+          {
+            "id": 2,
+            "title": "Validate and Update Cognito User Pool Configuration",
+            "description": "Review existing AWS Cognito User Pool setup and update configuration to ensure proper JWT token generation and validation",
+            "dependencies": [
+              "1.1"
+            ],
+            "details": "Check cognito.tf for User Pool configuration including app clients, domain settings, and token expiration times. Verify JWT signing keys are properly configured. Update password policies, MFA settings if needed. Ensure callback URLs match API Gateway endpoints. Document Cognito User Pool ID and App Client ID for use in other components.",
+            "status": "done",
+            "testStrategy": "Test user registration and login flow through Cognito hosted UI, verify JWT tokens are generated correctly, and validate token structure contains required claims"
+          },
+          {
+            "id": 3,
+            "title": "Configure API Gateway with Cognito Authorizer",
+            "description": "Update API Gateway configuration to properly integrate with Cognito User Pool for JWT-based authorization",
+            "dependencies": [
+              "1.1",
+              "1.2"
+            ],
+            "details": "Review api_gateway.tf and ensure Cognito authorizer is properly configured. Create or update authorizer resource pointing to the Cognito User Pool. Configure authorization scopes and token validation settings. Ensure all API methods that require authentication have the authorizer attached. Update CORS settings to allow Authorization headers.",
+            "status": "done",
+            "testStrategy": "Make API requests with valid and invalid JWT tokens to verify authorization works correctly, test CORS preflight requests"
+          },
+          {
+            "id": 4,
+            "title": "Verify RDS PostgreSQL Instance Configuration",
+            "description": "Validate existing RDS PostgreSQL 15 instance settings and ensure proper connectivity and security configurations",
+            "dependencies": [
+              "1.1"
+            ],
+            "details": "Check rds.tf for database instance configuration including instance class, storage, backup settings, and parameter groups. Verify PostgreSQL version is 15.x. Ensure security group allows connections from application subnets. Validate subnet group configuration. Check encryption settings and automated backup configuration. Document connection endpoint and port.",
+            "status": "done",
+            "testStrategy": "Connect to RDS instance using psql client from a bastion host or Lambda function to verify connectivity and PostgreSQL version"
+          },
+          {
+            "id": 5,
+            "title": "Validate ElastiCache Redis Configuration",
+            "description": "Review and update ElastiCache Redis cluster configuration for session management and caching",
+            "dependencies": [
+              "1.1"
+            ],
+            "details": "Examine elasticache.tf for Redis cluster configuration including node type, number of nodes, and replication settings. Verify subnet group and security group configurations allow access from application layer. Check parameter group settings for memory management and eviction policies. Ensure automatic failover is enabled for multi-AZ deployments.",
+            "status": "done",
+            "testStrategy": "Connect to Redis cluster using redis-cli from application subnet to verify connectivity and test basic set/get operations"
+          },
+          {
+            "id": 6,
+            "title": "Initialize Trac Database Schema",
+            "description": "Ensure Trac 1.4.4 database schema is properly initialized in the RDS PostgreSQL instance",
+            "dependencies": [
+              "1.4"
+            ],
+            "details": "Create a dedicated database for Trac if not exists. Run trac-admin initenv command or equivalent SQL scripts to create all required Trac tables including ticket, component, milestone, wiki, attachment, and permission tables. Verify all tables are created with correct relationships and indexes. Set up initial admin user and basic permissions.",
+            "status": "done",
+            "testStrategy": "Query information_schema to verify all Trac tables exist, run sample queries to ensure tables are accessible and have correct structure"
+          },
+          {
+            "id": 7,
+            "title": "Create Learning Schema Namespace",
+            "description": "Create dedicated learning schema in RDS instance for storing learning paths and concept metadata",
+            "dependencies": [
+              "1.4",
+              "1.6"
+            ],
+            "details": "Connect to RDS instance and execute CREATE SCHEMA learning command. Create all learning-specific tables including paths, concept_metadata, chunks, questions, and responses with proper foreign key relationships to Trac tables. Ensure UUID extension is enabled for primary key generation. Set appropriate permissions for application user.",
+            "status": "done",
+            "testStrategy": "Verify schema creation with \\dn command in psql, test table creation and foreign key constraints work properly with sample data"
+          },
+          {
+            "id": 8,
+            "title": "Configure VPC and Security Groups",
+            "description": "Review and update VPC networking configuration and security group rules for all components",
+            "dependencies": [
+              "1.1"
+            ],
+            "details": "Validate VPC CIDR ranges and subnet configurations in vpc.tf. Ensure public subnets have internet gateway routes and private subnets use NAT gateway. Review security group rules for RDS (port 5432), ElastiCache (port 6379), and application layer. Ensure least privilege access between components. Update network ACLs if needed.",
+            "status": "done",
+            "testStrategy": "Use AWS VPC Reachability Analyzer to test connectivity between components, verify security group rules with AWS CLI"
+          },
+          {
+            "id": 9,
+            "title": "Update Terraform State and Apply Changes",
+            "description": "Review Terraform state file and apply any necessary infrastructure updates",
+            "dependencies": [
+              "1.2",
+              "1.3",
+              "1.4",
+              "1.5",
+              "1.8"
+            ],
+            "details": "Ensure Terraform state is stored in S3 backend with state locking via DynamoDB. Run terraform plan to review all proposed changes. Create backup of current state before applying. Apply changes in stages if needed, starting with networking, then data stores, then application layer. Document any manual interventions required.",
+            "status": "done",
+            "testStrategy": "Verify terraform plan shows expected changes only, run terraform apply with approval, validate all resources are created/updated successfully"
+          },
+          {
+            "id": 10,
+            "title": "Document Infrastructure Configuration",
+            "description": "Create comprehensive documentation of the updated AWS infrastructure configuration",
+            "dependencies": [
+              "1.9"
+            ],
+            "details": "Document all AWS resource IDs, endpoints, and connection strings. Create architecture diagram showing component relationships. Document security group rules and network flow. Include troubleshooting guide for common issues. Create runbook for disaster recovery procedures. Update README in /learntrac-infrastructure with setup instructions.",
+            "status": "done",
+            "testStrategy": "Have team member follow documentation to verify completeness, test connection strings and endpoints are accurate"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Create Learning Schema and Tables in Existing RDS",
+        "description": "Design and implement custom learning schema tables in the existing RDS PostgreSQL instance alongside Trac tables.",
+        "details": "CREATE SCHEMA learning;\n\nCREATE TABLE learning.paths (\n    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n    title VARCHAR(255),\n    query_text TEXT,\n    cognito_user_id VARCHAR(100),\n    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n    total_chunks INTEGER DEFAULT 0,\n    question_difficulty INTEGER DEFAULT 3\n);\n\nCREATE TABLE learning.concept_metadata (\n    ticket_id INTEGER PRIMARY KEY REFERENCES public.ticket(id),\n    path_id UUID REFERENCES learning.paths(id),\n    chunk_id VARCHAR(100),\n    relevance_score FLOAT,\n    question_generated BOOLEAN DEFAULT true,\n    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);\n\nCREATE TABLE learning.prerequisites (\n    concept_ticket_id INTEGER REFERENCES public.ticket(id),\n    prerequisite_ticket_id INTEGER REFERENCES public.ticket(id),\n    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n    PRIMARY KEY (concept_ticket_id, prerequisite_ticket_id)\n);\n\nCREATE TABLE learning.progress (\n    cognito_user_id VARCHAR(100),\n    ticket_id INTEGER REFERENCES public.ticket(id),\n    status VARCHAR(20) DEFAULT 'not_started',\n    started_at TIMESTAMP,\n    last_accessed TIMESTAMP,\n    completed_at TIMESTAMP,\n    time_spent_minutes INTEGER DEFAULT 0,\n    notes TEXT,\n    last_answer TEXT,\n    answer_score FLOAT,\n    answer_feedback TEXT,\n    PRIMARY KEY (cognito_user_id, ticket_id)\n);",
+        "testStrategy": "Execute schema creation scripts against existing RDS instance and verify all tables exist with correct relationships. Test foreign key constraints work properly.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up database connection and verify RDS access",
+            "description": "Configure PostgreSQL connection parameters for the existing RDS instance and verify connectivity from development environment",
+            "dependencies": [],
+            "details": "Create a database connection configuration file with proper credentials for the existing RDS PostgreSQL instance. Test connection using psql or a Python script with psycopg2. Verify current Trac tables exist in the public schema and document the connection parameters (host, port, database name) for use in subsequent tasks.",
+            "status": "done",
+            "testStrategy": "Execute a simple SELECT query against public.ticket table to confirm read access. Test write permissions by creating and dropping a test table in a temporary schema."
+          },
+          {
+            "id": 2,
+            "title": "Create learning schema and verify isolation from Trac tables",
+            "description": "Execute CREATE SCHEMA learning command and ensure proper isolation from existing Trac tables in public schema",
+            "dependencies": [
+              "2.1"
+            ],
+            "details": "Connect to RDS instance and create the learning schema using 'CREATE SCHEMA learning;'. Verify the schema is created by querying information_schema.schemata. Ensure proper permissions are set so the application user can create tables within this schema. Document any permission issues and coordinate with DBA if needed.",
+            "status": "done",
+            "testStrategy": "Query pg_namespace to verify learning schema exists. Create a test table in learning schema and verify it doesn't interfere with public schema. Check user permissions with \\dn+ in psql."
+          },
+          {
+            "id": 3,
+            "title": "Implement learning.paths table with UUID generation",
+            "description": "Create the paths table with UUID primary key and all required columns including cognito_user_id integration",
+            "dependencies": [
+              "2.2"
+            ],
+            "details": "Execute the CREATE TABLE learning.paths statement with UUID primary key using gen_random_uuid(). Ensure all columns are created with proper data types: title (VARCHAR 255), query_text (TEXT), cognito_user_id (VARCHAR 100), created_at (TIMESTAMP), total_chunks (INTEGER), and question_difficulty (INTEGER). Verify gen_random_uuid() extension is available or enable pgcrypto if needed.",
+            "status": "done",
+            "testStrategy": "Insert test records with various cognito_user_id values and verify UUID generation works. Test default values for created_at, total_chunks, and question_difficulty. Verify constraints are enforced."
+          },
+          {
+            "id": 4,
+            "title": "Create learning.concept_metadata table with foreign key to ticket",
+            "description": "Implement concept_metadata table with proper foreign key relationship to existing public.ticket table",
+            "dependencies": [
+              "2.3"
+            ],
+            "details": "Create learning.concept_metadata table with ticket_id as primary key referencing public.ticket(id). Include all columns: path_id (UUID referencing learning.paths), chunk_id (VARCHAR 100), relevance_score (FLOAT), question_generated (BOOLEAN), and created_at (TIMESTAMP). Ensure cross-schema foreign key from learning.concept_metadata to public.ticket works properly.",
+            "status": "done",
+            "testStrategy": "Insert test records referencing existing ticket IDs from public.ticket table. Verify foreign key constraint prevents insertion of non-existent ticket_ids. Test cascade behavior if tickets are deleted."
+          },
+          {
+            "id": 5,
+            "title": "Implement learning.prerequisites table with bidirectional ticket references",
+            "description": "Create prerequisites table establishing many-to-many relationships between tickets for prerequisite tracking",
+            "dependencies": [
+              "2.4"
+            ],
+            "details": "Create learning.prerequisites table with composite primary key (concept_ticket_id, prerequisite_ticket_id) both referencing public.ticket(id). Include created_at timestamp. Ensure the table can handle bidirectional relationships where a ticket can be both a concept and a prerequisite for different learning paths.",
+            "status": "done",
+            "testStrategy": "Insert prerequisite relationships between existing tickets. Test that circular dependencies can be prevented at application level. Verify both foreign keys work and deletion of referenced tickets is properly handled."
+          },
+          {
+            "id": 6,
+            "title": "Create learning.progress table with composite primary key",
+            "description": "Implement progress tracking table with cognito_user_id and ticket_id as composite primary key",
+            "dependencies": [
+              "2.5"
+            ],
+            "details": "Create learning.progress table with composite primary key (cognito_user_id, ticket_id). Include all tracking columns: status (VARCHAR 20), started_at, last_accessed, completed_at (TIMESTAMPS), time_spent_minutes (INTEGER), notes (TEXT), last_answer (TEXT), answer_score (FLOAT), and answer_feedback (TEXT). Set appropriate defaults especially for status field.",
+            "status": "done",
+            "testStrategy": "Insert progress records for multiple users and tickets. Verify composite key prevents duplicates. Test status transitions and timestamp updates. Verify all default values work correctly."
+          },
+          {
+            "id": 7,
+            "title": "Create database indexes for performance optimization",
+            "description": "Add appropriate indexes on foreign keys and frequently queried columns across all learning tables",
+            "dependencies": [
+              "2.6"
+            ],
+            "details": "Create indexes on: learning.concept_metadata(path_id), learning.prerequisites(prerequisite_ticket_id), learning.progress(ticket_id), learning.progress(cognito_user_id), and learning.paths(cognito_user_id). Consider additional indexes on timestamp columns if needed for query performance. Name indexes consistently using table_column_idx pattern.",
+            "status": "done",
+            "testStrategy": "Use EXPLAIN ANALYZE on common queries to verify index usage. Test query performance with and without indexes using sample data. Monitor index size and maintenance overhead."
+          },
+          {
+            "id": 8,
+            "title": "Implement database migration script with rollback capability",
+            "description": "Create versioned migration script that can create all tables and provide rollback functionality",
+            "dependencies": [
+              "2.7"
+            ],
+            "details": "Create a Python migration script using alembic or similar tool that executes all CREATE statements in proper order. Include migration version tracking, up() and down() methods for rollback capability. Script should check if objects already exist before creating them. Include transaction handling to ensure atomic operations.",
+            "status": "done",
+            "testStrategy": "Test migration on a clean database and verify all objects are created. Test rollback functionality removes all learning schema objects. Test idempotency by running migration twice."
+          },
+          {
+            "id": 9,
+            "title": "Create database views for common query patterns",
+            "description": "Implement database views to simplify complex joins between learning tables and Trac tickets",
+            "dependencies": [
+              "2.8"
+            ],
+            "details": "Create views such as: learning.v_path_tickets (joining paths with concept_metadata and tickets), learning.v_user_progress (comprehensive progress view with ticket details), learning.v_prerequisites_graph (flattened prerequisite relationships). These views will simplify API queries and improve maintainability.",
+            "status": "done",
+            "testStrategy": "Query each view to verify correct data is returned. Test view performance compared to raw queries. Verify views update correctly when underlying data changes."
+          },
+          {
+            "id": 10,
+            "title": "Document schema and create ER diagram",
+            "description": "Generate comprehensive documentation including ER diagram showing relationships between learning tables and Trac tables",
+            "dependencies": [
+              "2.9"
+            ],
+            "details": "Use pg_dump --schema-only to extract final schema definition. Create visual ER diagram using tools like dbdiagram.io or pgModeler showing all tables, relationships, and constraints. Document each table's purpose, column meanings, and integration points with Trac. Include example queries for common operations. Save documentation in project repository.",
+            "status": "done",
+            "testStrategy": "Verify documentation accurately reflects implemented schema. Test example queries work as documented. Ensure ER diagram correctly shows all foreign key relationships including cross-schema references."
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Implement Cognito Authentication Plugin for Trac",
+        "description": "Create Trac plugin to integrate with existing AWS Cognito authentication using JWT token validation.",
+        "details": "# plugins/learning_auth.py\nfrom trac.core import Component, implements\nfrom trac.web.api import IAuthenticator, IRequestHandler\nimport jwt\nimport requests\n\nclass CognitoAuthenticator(Component):\n    implements(IAuthenticator, IRequestHandler)\n    \n    def authenticate(self, req):\n        auth_header = req.get_header('Authorization')\n        if not auth_header or not auth_header.startswith('Bearer '):\n            return None\n        \n        token = auth_header[7:]\n        try:\n            claims = self._verify_cognito_token(token)\n            req.session['cognito_sub'] = claims['sub']\n            req.session['email'] = claims['email']\n            req.session['name'] = claims['name']\n            req.session.save()\n            return claims['email']\n        except Exception as e:\n            self.log.error('Cognito auth failed: %s', e)\n            return None\n    \n    def _verify_cognito_token(self, token):\n        region = self.config.get('cognito', 'region')\n        user_pool_id = self.config.get('cognito', 'user_pool_id')\n        jwks_url = f'https://cognito-idp.{region}.amazonaws.com/{user_pool_id}/.well-known/jwks.json'\n        jwks = requests.get(jwks_url).json()\n        return jwt.decode(token, jwks, algorithms=['RS256'], audience=self.config.get('cognito', 'client_id'))",
+        "testStrategy": "Test JWT token validation with valid and invalid tokens from existing Cognito setup. Verify session creation and user mapping works correctly.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up Trac plugin development environment",
+            "description": "Configure local Trac instance with development setup for plugin testing and integration with existing AWS infrastructure",
+            "dependencies": [],
+            "details": "Install Trac locally, set up Python virtual environment with required dependencies (trac, jwt, requests, boto3). Configure trac.ini with test Cognito settings pointing to existing AWS infrastructure. Create plugins directory structure and basic plugin skeleton following Trac plugin architecture patterns.",
+            "status": "done",
+            "testStrategy": "Verify Trac instance starts successfully, plugin directory is recognized, and basic plugin loads without errors. Test connection to AWS services."
+          },
+          {
+            "id": 2,
+            "title": "Implement JWT token validation with Cognito JWKS",
+            "description": "Create robust JWT validation logic that fetches and caches JWKS from Cognito, validates token signatures, and handles token expiration",
+            "dependencies": [
+              "3.1"
+            ],
+            "details": "Implement JWKS caching to avoid repeated HTTP calls to Cognito. Add proper error handling for network failures, invalid tokens, and expired tokens. Use python-jose or PyJWT library with RS256 algorithm support. Cache JWKS keys for performance optimization with configurable TTL.",
+            "status": "done",
+            "testStrategy": "Unit test with valid/invalid/expired tokens from actual Cognito instance. Mock JWKS endpoint failures. Verify signature validation with manipulated tokens. Test JWKS cache expiration and refresh."
+          },
+          {
+            "id": 3,
+            "title": "Create Trac session management for Cognito users",
+            "description": "Implement session creation and management that maps Cognito claims to Trac user sessions with proper attribute mapping",
+            "dependencies": [
+              "3.2"
+            ],
+            "details": "Map Cognito 'sub' claim to unique user identifier, extract email and name from JWT claims. Handle session persistence across requests. Implement session timeout aligned with JWT expiration. Create user profile mapping from Cognito attributes to Trac user properties.",
+            "status": "done",
+            "testStrategy": "Test session creation with various JWT claim combinations. Verify session persistence across multiple requests. Test session expiration handling and renewal."
+          },
+          {
+            "id": 4,
+            "title": "Implement IAuthenticator interface methods",
+            "description": "Complete implementation of Trac's IAuthenticator interface including authenticate method and request preprocessing",
+            "dependencies": [
+              "3.3"
+            ],
+            "details": "Implement authenticate(req) method to extract and validate Bearer tokens from Authorization header. Add pre_process_request to check authentication on protected resources. Handle anonymous access for public pages. Implement proper error responses for authentication failures.",
+            "status": "done",
+            "testStrategy": "Test authentication flow with valid/invalid tokens. Verify protected vs public resource access. Test error response formats and HTTP status codes."
+          },
+          {
+            "id": 5,
+            "title": "Add configuration management for Cognito settings",
+            "description": "Create configuration system for managing Cognito region, user pool ID, and client ID through trac.ini",
+            "dependencies": [
+              "3.4"
+            ],
+            "details": "Define [cognito] section in trac.ini with required parameters: region, user_pool_id, client_id, and optional parameters like jwks_cache_ttl. Add configuration validation on plugin startup. Provide meaningful error messages for missing configurations. Support environment variable overrides for sensitive values.",
+            "status": "done",
+            "testStrategy": "Test with various configuration combinations. Verify error handling for missing required configs. Test environment variable override functionality."
+          },
+          {
+            "id": 6,
+            "title": "Implement request handler for authentication endpoints",
+            "description": "Create IRequestHandler implementation for login/logout endpoints that integrate with Cognito hosted UI or custom login flow",
+            "dependencies": [
+              "3.5"
+            ],
+            "details": "Add /login and /logout endpoints. Implement redirect to Cognito hosted UI for login. Handle OAuth2 callback with authorization code flow. Clear Trac session on logout and optionally trigger Cognito logout. Support deep linking to return users to requested page after login.",
+            "status": "done",
+            "testStrategy": "Test login redirect flow with return URL preservation. Verify logout clears all session data. Test OAuth2 callback handling with various response scenarios."
+          },
+          {
+            "id": 7,
+            "title": "Add user permission mapping from Cognito groups",
+            "description": "Map Cognito user groups to Trac permissions for role-based access control",
+            "dependencies": [
+              "3.6"
+            ],
+            "details": "Extract Cognito groups from JWT claims or fetch from Cognito API. Create configurable mapping of Cognito groups to Trac permissions. Implement IPermissionRequestor to define custom permissions. Cache permission mappings for performance. Support dynamic permission updates without restart.",
+            "status": "done",
+            "testStrategy": "Test permission mapping with various group combinations. Verify permission enforcement on different Trac resources. Test permission cache invalidation."
+          },
+          {
+            "id": 8,
+            "title": "Create error handling and logging system",
+            "description": "Implement comprehensive error handling and logging for authentication failures and debugging",
+            "dependencies": [
+              "3.7"
+            ],
+            "details": "Add structured logging for authentication events (success/failure/errors). Implement custom exceptions for different failure scenarios. Create user-friendly error pages for authentication issues. Add debug mode for detailed authentication flow logging. Include request correlation IDs for troubleshooting.",
+            "status": "done",
+            "testStrategy": "Test error scenarios including network failures, invalid configurations, and malformed tokens. Verify log output format and content. Test error page rendering."
+          },
+          {
+            "id": 9,
+            "title": "Implement plugin installation and setup documentation",
+            "description": "Create installation package and comprehensive documentation for deploying the Cognito authentication plugin",
+            "dependencies": [
+              "3.8"
+            ],
+            "details": "Create setup.py for plugin packaging with proper dependencies. Write installation guide covering Trac configuration, AWS setup requirements, and troubleshooting. Include example trac.ini configurations. Document API endpoints and integration points. Create migration guide for existing Trac installations.",
+            "status": "done",
+            "testStrategy": "Test installation on clean Trac instance. Verify all dependencies are properly declared. Test upgrade scenarios from standard Trac authentication."
+          },
+          {
+            "id": 10,
+            "title": "Add integration tests and performance optimization",
+            "description": "Create comprehensive integration test suite and optimize performance for production use",
+            "dependencies": [
+              "3.9"
+            ],
+            "details": "Write integration tests covering full authentication flow with real Cognito instance. Add performance tests for high-concurrency scenarios. Optimize JWKS caching and validation performance. Implement connection pooling for HTTP requests. Add metrics collection for monitoring authentication performance.",
+            "status": "done",
+            "testStrategy": "Run load tests simulating concurrent authentication requests. Measure authentication latency under various conditions. Test failover scenarios with Cognito outages."
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Build Learning Service Container with FastAPI in /learntrac-api",
+        "description": "Create Python 3.11 Learning Service with FastAPI in the /learntrac-api directory for Neo4j integration and AI operations, connecting to existing AWS infrastructure.",
+        "details": "# /learntrac-api/app/main.py\nfrom fastapi import FastAPI, Depends, HTTPException\nfrom fastapi.security import HTTPBearer, HTTPAuthorizationCredentials\nimport boto3\n\napp = FastAPI(title='TracLearn Learning Service')\nsecurity = HTTPBearer()\n\nrds_client = boto3.client('rds-data')\nelasticache_client = boto3.client('elasticache')\n\nasync def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):\n    token = credentials.credentials\n    try:\n        claims = await verify_cognito_token(token)\n        return claims\n    except Exception as e:\n        raise HTTPException(status_code=401, detail='Invalid authentication')\n\n@app.post('/api/v1/learning-paths/generate')\nasync def generate_learning_path(request: LearningPathRequest, user = Depends(get_current_user)):\n    user_id = user['sub']\n    # Check cache first\n    cached = await cache_client.get_cached_search(request.query, user_id)\n    if cached:\n        return cached\n    \n    # Generate academic sentences\n    sentences = await generate_academic_sentences(request.query)\n    \n    # Create embeddings and search Neo4j\n    embeddings = await create_embeddings(sentences)\n    avg_embedding = average_embeddings(embeddings)\n    chunks = await neo4j_client.vector_search(avg_embedding)\n    \n    # Cache results\n    await cache_client.cache_search_results(request.query, user_id, chunks)\n    return chunks",
+        "testStrategy": "Test API endpoints with mock Neo4j responses. Verify caching works with existing ElastiCache and authentication is enforced on all endpoints using existing Cognito setup.",
+        "priority": "high",
+        "dependencies": [
+          2
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up FastAPI project structure in /learntrac-api",
+            "description": "Create the initial Python 3.11 project structure with FastAPI dependencies, proper folder organization, and configuration files in the /learntrac-api directory",
+            "dependencies": [],
+            "details": "Create directory structure: /learntrac-api/app/{api,core,models,schemas,services}. Initialize pyproject.toml with dependencies: fastapi==0.104.1, uvicorn==0.24.0, python-jose==3.3.0, boto3==1.29.7, redis==5.0.1, neo4j==5.14.0, httpx==0.25.1, pydantic==2.5.0. Create .env.example with required environment variables: NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD, ELASTICACHE_ENDPOINT, COGNITO_USER_POOL_ID, COGNITO_REGION, AWS_REGION. Set up logging configuration and basic error handling middleware.",
+            "status": "done",
+            "testStrategy": "Verify project structure exists, all dependencies install correctly with pip, and FastAPI app starts on port 8000 without errors"
+          },
+          {
+            "id": 2,
+            "title": "Implement Cognito JWT token verification",
+            "description": "Create authentication module to verify AWS Cognito JWT tokens and extract user claims for securing API endpoints",
+            "dependencies": [
+              "4.1"
+            ],
+            "details": "Create /learntrac-api/app/core/auth.py with verify_cognito_token function. Use python-jose to decode JWT tokens, fetch Cognito JWKS from the well-known endpoint, validate token signature and expiration. Implement get_current_user dependency that extracts user sub (cognito_user_id) from validated tokens. Add proper error handling for expired tokens, invalid signatures, and missing claims. Cache JWKS keys for performance.",
+            "status": "done",
+            "testStrategy": "Test with valid and invalid JWT tokens, verify proper 401 responses for invalid tokens, test token expiration handling, mock Cognito JWKS endpoint"
+          },
+          {
+            "id": 3,
+            "title": "Create Neo4j Aura async client with connection pooling",
+            "description": "Implement Neo4j async driver client with proper connection pooling and error handling for vector similarity searches",
+            "dependencies": [
+              "4.1"
+            ],
+            "details": "Create /learntrac-api/app/core/neo4j_client.py with Neo4jAuraClient class. Initialize AsyncGraphDatabase driver with connection pooling (max_connection_pool_size=50). Implement vector_search method that executes Cypher query for cosine similarity search on embeddings. Add retry logic for transient failures, proper session management with async context managers, and connection health checks. Include logging for query performance metrics.",
+            "status": "done",
+            "testStrategy": "Test connection to Neo4j Aura instance, verify connection pool behavior under load, test vector search with sample embeddings, verify retry logic works"
+          },
+          {
+            "id": 4,
+            "title": "Build ElastiCache Redis client with async support",
+            "description": "Create Redis client for ElastiCache with async operations, connection pooling, and proper serialization for caching search results",
+            "dependencies": [
+              "4.1"
+            ],
+            "details": "Create /learntrac-api/app/core/cache_client.py with ElastiCacheClient class. Use redis-py with async support, implement connection pooling. Create methods: get_cached_search (with MD5 hash keys), cache_search_results (with TTL), invalidate_user_cache, get_learning_progress, cache_generated_graph. Use JSON serialization for complex objects, implement proper key namespacing (search:, progress:, graph:). Add circuit breaker pattern for cache failures.",
+            "status": "done",
+            "testStrategy": "Test cache operations with mock Redis, verify TTL expiration, test serialization of complex objects, verify cache miss handling"
+          },
+          {
+            "id": 5,
+            "title": "Implement academic sentence generation service",
+            "description": "Create service to generate academic-style sentences from user queries using AI models for enhanced search accuracy",
+            "dependencies": [
+              "4.1"
+            ],
+            "details": "Create /learntrac-api/app/services/sentence_generator.py with generate_academic_sentences function. Integrate with OpenAI API or similar to transform casual queries into academic language. Implement prompt engineering to generate 3-5 variations of the query in academic style. Add rate limiting, error handling for API failures, and fallback to original query. Cache generated sentences per query to reduce API calls.",
+            "status": "done",
+            "testStrategy": "Test with various query types, verify academic sentence quality, test API failure handling, verify caching reduces API calls"
+          },
+          {
+            "id": 6,
+            "title": "Create embedding service with vector operations",
+            "description": "Build service to create embeddings from text using sentence transformers and perform vector averaging operations",
+            "dependencies": [
+              "4.1"
+            ],
+            "details": "Create /learntrac-api/app/services/embedding_service.py with create_embeddings and average_embeddings functions. Use sentence-transformers library with 'all-MiniLM-L6-v2' model or similar. Implement batch processing for multiple sentences, proper tensor handling, and dimension validation (384-dim vectors). Add model caching to avoid reloading, implement embedding normalization for cosine similarity. Include error handling for invalid inputs.",
+            "status": "done",
+            "testStrategy": "Test embedding generation with sample texts, verify vector dimensions, test averaging function with multiple embeddings, benchmark performance"
+          },
+          {
+            "id": 7,
+            "title": "Develop learning path generation API endpoint",
+            "description": "Create the main POST endpoint for generating learning paths with proper request/response models and error handling",
+            "dependencies": [
+              "4.2",
+              "4.3",
+              "4.4",
+              "4.5",
+              "4.6"
+            ],
+            "details": "Implement POST /api/v1/learning-paths/generate endpoint in /learntrac-api/app/api/v1/learning_paths.py. Create Pydantic models: LearningPathRequest (query, difficulty_level, max_chunks) and LearningPathResponse (chunks, total_count, cache_hit). Implement full flow: auth check, cache lookup, sentence generation, embedding creation, Neo4j search, result caching. Add request validation, proper HTTP status codes, and detailed error messages. Include request ID tracking for debugging.",
+            "status": "done",
+            "testStrategy": "Test complete flow with valid requests, verify auth enforcement, test cache hit/miss scenarios, validate response structure, test error cases"
+          },
+          {
+            "id": 8,
+            "title": "Create RDS integration service for learning data persistence",
+            "description": "Build service to interact with RDS PostgreSQL for storing learning paths and concept metadata using boto3 RDS Data API",
+            "dependencies": [
+              "4.1"
+            ],
+            "details": "Create /learntrac-api/app/services/rds_service.py with methods for learning schema operations. Use boto3 rds-data client for serverless RDS access. Implement: create_learning_path (store path with user_id), link_concept_to_ticket (create concept_metadata entries), get_user_learning_paths, update_path_statistics. Use parameterized queries to prevent SQL injection, implement transaction support for atomic operations. Add connection retry logic and proper error mapping.",
+            "status": "done",
+            "testStrategy": "Test CRUD operations against RDS, verify transaction rollback on errors, test SQL injection prevention, verify foreign key constraints"
+          },
+          {
+            "id": 9,
+            "title": "Implement monitoring and health check endpoints",
+            "description": "Create health check and monitoring endpoints to verify service connectivity to all external dependencies",
+            "dependencies": [
+              "4.3",
+              "4.4",
+              "4.8"
+            ],
+            "details": "Create GET /health and GET /ready endpoints. Health endpoint returns basic service status. Ready endpoint checks: Neo4j connection (execute simple query), Redis connection (ping), RDS connection (select 1), Cognito JWKS endpoint reachability. Implement detailed status responses with component health, response times, and error messages. Add Prometheus metrics endpoint at /metrics for monitoring integration. Include service version and deployment info.",
+            "status": "done",
+            "testStrategy": "Test health endpoints return proper status codes, verify dependency checks work correctly, test metrics endpoint format"
+          },
+          {
+            "id": 10,
+            "title": "Create Docker configuration and deployment setup",
+            "description": "Build Docker container configuration for the FastAPI service with proper environment handling and AWS integration",
+            "dependencies": [
+              "4.1",
+              "4.7",
+              "4.9"
+            ],
+            "details": "Create Dockerfile with Python 3.11-slim base image, multi-stage build for smaller size. Configure proper USER directive for security, COPY requirements and install dependencies, expose port 8000. Create docker-compose.yml for local development with service dependencies mocked. Add .dockerignore file, implement proper signal handling for graceful shutdown. Create deployment scripts for ECS/Fargate with task definition including IAM roles for AWS service access. Include environment variable validation on startup.",
+            "status": "done",
+            "testStrategy": "Build Docker image successfully, verify container starts and passes health checks, test environment variable handling, verify AWS credentials work in container"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Implement Neo4j Aura Vector Search Integration in /learntrac-api",
+        "description": "Create Neo4j client in /learntrac-api directory for connecting to Aura instance and performing vector similarity searches.",
+        "details": "# /learntrac-api/app/core/neo4j_client.py\nfrom neo4j import AsyncGraphDatabase\nimport os\n\nclass Neo4jAuraClient:\n    def __init__(self):\n        self.driver = AsyncGraphDatabase.driver(\n            os.environ['NEO4J_URI'],\n            auth=(os.environ['NEO4J_USER'], os.environ['NEO4J_PASSWORD'])\n        )\n    \n    async def vector_search(self, embedding, min_score=0.65, limit=20):\n        async with self.driver.session() as session:\n            result = await session.run(\"\"\"\n                MATCH (c:Chunk)\n                WITH c, gds.similarity.cosine(c.embedding, $embedding) AS score\n                WHERE score >= $min_score\n                RETURN c.id, c.content, c.subject, c.concept,\n                       c.has_prerequisite, c.prerequisite_for, score\n                ORDER BY score DESC\n                LIMIT $limit\n            \"\"\", embedding=embedding, min_score=min_score, limit=limit)\n            \n            return [record.data() async for record in result]\n    \n    async def close(self):\n        await self.driver.close()",
+        "testStrategy": "Test connection to Neo4j Aura, verify vector search returns relevant chunks with scores above 0.65 threshold.",
+        "priority": "high",
+        "dependencies": [
+          4
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up Neo4j Aura instance and configure connection parameters",
+            "description": "Create Neo4j Aura instance, configure network access, and set up environment variables for connection in /learntrac-api",
+            "dependencies": [],
+            "details": "Create Neo4j Aura free tier instance, configure IP whitelist for AWS infrastructure, generate and securely store connection credentials (NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD) in AWS Secrets Manager or environment configuration. Ensure the instance supports vector indexes and GDS library for cosine similarity calculations.",
+            "status": "done",
+            "testStrategy": "Test connection from local development environment and AWS infrastructure, verify credentials are properly loaded from environment variables"
+          },
+          {
+            "id": 2,
+            "title": "Install and configure Neo4j Python driver with async support",
+            "description": "Add neo4j Python package to /learntrac-api requirements and configure async driver initialization",
+            "dependencies": [],
+            "details": "Add 'neo4j>=5.0.0' to requirements.txt in /learntrac-api, ensure compatibility with Python 3.11 and FastAPI async patterns. Configure connection pooling settings for optimal performance with AsyncGraphDatabase driver.",
+            "status": "done",
+            "testStrategy": "Test driver installation, verify async/await compatibility with FastAPI, test connection pool behavior under load"
+          },
+          {
+            "id": 3,
+            "title": "Implement Neo4jAuraClient class with connection management",
+            "description": "Create the base Neo4jAuraClient class in /learntrac-api/app/core/neo4j_client.py with proper connection lifecycle management",
+            "dependencies": [
+              "5.1",
+              "5.2"
+            ],
+            "details": "Implement __init__ method to initialize AsyncGraphDatabase driver with environment variables, add connection retry logic, implement proper async context manager support with __aenter__ and __aexit__ methods for automatic resource cleanup.",
+            "status": "done",
+            "testStrategy": "Test client initialization with valid/invalid credentials, verify connection pooling, test automatic cleanup on context exit"
+          },
+          {
+            "id": 4,
+            "title": "Create vector search Cypher query with cosine similarity",
+            "description": "Implement the vector_search method with optimized Cypher query for cosine similarity search on Chunk nodes",
+            "dependencies": [
+              "5.3"
+            ],
+            "details": "Write Cypher query using gds.similarity.cosine function to compare input embedding with stored embeddings in Chunk nodes. Ensure query properly filters by min_score threshold and returns all required fields (id, content, subject, concept, has_prerequisite, prerequisite_for, score). Add query explain plan optimization.",
+            "status": "done",
+            "testStrategy": "Test query performance with various embedding sizes, verify score calculations are accurate, test with different min_score thresholds"
+          },
+          {
+            "id": 5,
+            "title": "Implement async result processing and data transformation",
+            "description": "Add result processing logic to transform Neo4j records into Python dictionaries with proper async handling",
+            "dependencies": [
+              "5.4"
+            ],
+            "details": "Implement async list comprehension to process query results, ensure all record fields are properly extracted and typed. Add error handling for missing fields or malformed data. Consider implementing result caching key generation for integration with ElastiCache.",
+            "status": "done",
+            "testStrategy": "Test with various result sizes, verify async processing doesn't block, test error handling for malformed records"
+          },
+          {
+            "id": 6,
+            "title": "Add connection health check and monitoring endpoints",
+            "description": "Create health check methods to verify Neo4j connection status and query performance metrics",
+            "dependencies": [
+              "5.3"
+            ],
+            "details": "Implement async health_check() method that runs a simple Cypher query to verify connectivity. Add metrics collection for query execution times, result counts, and connection pool status. Create get_connection_stats() method for monitoring.",
+            "status": "done",
+            "testStrategy": "Test health check under various network conditions, verify metrics accuracy, test recovery from connection failures"
+          },
+          {
+            "id": 7,
+            "title": "Implement bulk vector operations for efficiency",
+            "description": "Add methods for bulk vector searches and batch operations to improve performance for multiple queries",
+            "dependencies": [
+              "5.5"
+            ],
+            "details": "Create bulk_vector_search() method that accepts multiple embeddings and returns results grouped by query. Implement query batching to reduce round trips to Neo4j. Add support for different search strategies (e.g., k-nearest neighbors vs threshold-based).",
+            "status": "done",
+            "testStrategy": "Test bulk operations with varying batch sizes, compare performance vs individual queries, verify result grouping accuracy"
+          },
+          {
+            "id": 8,
+            "title": "Add graph traversal methods for prerequisite chains",
+            "description": "Implement methods to traverse has_prerequisite and prerequisite_for relationships for learning path generation",
+            "dependencies": [
+              "5.4"
+            ],
+            "details": "Create get_prerequisite_chain() method to recursively fetch all prerequisites for a given chunk. Add get_dependent_concepts() to find what concepts depend on current chunk. Implement depth limiting and cycle detection in traversals.",
+            "status": "done",
+            "testStrategy": "Test traversal with deep prerequisite chains, verify cycle detection works, test performance with large graphs"
+          },
+          {
+            "id": 9,
+            "title": "Create FastAPI integration endpoints for vector search",
+            "description": "Implement FastAPI endpoints in /learntrac-api that expose Neo4j vector search functionality with proper authentication",
+            "dependencies": [
+              "5.5",
+              "5.6"
+            ],
+            "details": "Create POST /api/v1/search/vector endpoint that accepts embedding arrays, integrates with Cognito authentication from Task 4, and returns paginated results. Add request validation for embedding dimensions and search parameters. Implement proper error responses.",
+            "status": "done",
+            "testStrategy": "Test endpoint with valid/invalid embeddings, verify authentication integration, test pagination and error handling"
+          },
+          {
+            "id": 10,
+            "title": "Implement caching integration with ElastiCache",
+            "description": "Add caching layer to Neo4j client that integrates with ElastiCache Redis from Task 7",
+            "dependencies": [
+              "5.9"
+            ],
+            "details": "Modify vector_search to check ElastiCache before querying Neo4j. Implement cache key generation based on embedding hash and search parameters. Add cache warming strategies for frequently accessed concepts. Set appropriate TTLs based on data volatility.",
+            "status": "done",
+            "testStrategy": "Test cache hit/miss scenarios, verify cache invalidation on data updates, measure performance improvement with caching"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Create Wiki Macro for Learning Path Input",
+        "description": "Implement [[LearningPath]] Wiki macro that accepts queries and displays chunk preview before ticket creation, integrating with Learning Service in /learntrac-api.",
+        "details": "# plugins/learning_macros.py\nfrom trac.wiki.macros import WikiMacroBase\nfrom genshi.builder import tag\n\nclass LearningPathMacro(WikiMacroBase):\n    def expand_macro(self, formatter, name, content):\n        # Verify user is authenticated\n        if not formatter.req.session.get('cognito_sub'):\n            return tag.div('Please log in to create learning paths', class_='error')\n        \n        # Create form with AJAX submission to /learntrac-api endpoints\n        return tag.div(\n            tag.form(\n                tag.textarea(placeholder='I want to learn...', name='query', rows='3', cols='60'),\n                tag.br(),\n                tag.input(type='button', value='Generate Learning Path', onclick='generatePath()', class_='button'),\n                tag.div(id='loading-spinner', style='display:none', class_='spinner'),\n                tag.div(id='chunk-preview', style='display:none'),\n                tag.div(id='create-section', style='display:none',\n                    tag.input(type='button', value='Create Learning Path', onclick='createTickets()', class_='button primary')\n                ),\n                id='learning-path-form'\n            ),\n            tag.script(src='/chrome/learning/js/learning-path.js')\n        )",
+        "testStrategy": "Verify macro renders correctly in Wiki pages, authentication check works with existing Cognito, and AJAX calls properly connect to Learning Service API in /learntrac-api.",
+        "priority": "high",
+        "dependencies": [
+          3,
+          4
+        ],
+        "status": "in-progress",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up Trac plugin infrastructure for Learning Path macro",
+            "description": "Create the basic plugin structure and registration for the LearningPathMacro in the Trac plugins directory",
+            "dependencies": [],
+            "details": "Create plugins/learning_macros.py with proper Trac plugin structure including setup.py entry points, IWikiMacroProvider interface implementation, and basic macro registration. Ensure the plugin can be loaded by Trac without errors.",
+            "status": "done",
+            "testStrategy": "Verify plugin loads in Trac admin panel, check trac.log for any loading errors, and confirm macro appears in WikiMacros page"
+          },
+          {
+            "id": 2,
+            "title": "Implement authentication check for Cognito users",
+            "description": "Add Cognito authentication verification to ensure only logged-in users can access the Learning Path creation form",
+            "dependencies": [
+              "6.1"
+            ],
+            "details": "Implement the authentication check using formatter.req.session.get('cognito_sub') to verify user has valid Cognito session. Return appropriate error message with styling for non-authenticated users using tag.div with 'error' class.",
+            "status": "done",
+            "testStrategy": "Test with authenticated and non-authenticated sessions, verify error message displays correctly for non-authenticated users, and form renders for authenticated users"
+          },
+          {
+            "id": 3,
+            "title": "Create HTML form structure with Genshi tags",
+            "description": "Build the complete form layout using Genshi tag builder including textarea, buttons, and placeholder divs",
+            "dependencies": [
+              "6.2"
+            ],
+            "details": "Use Genshi's tag builder to create form structure with: textarea for query input (3x60), 'Generate Learning Path' button with onclick handler, loading spinner div (hidden by default), chunk-preview div for results display, and create-section div with 'Create Learning Path' button.",
+            "status": "done",
+            "testStrategy": "Render macro in wiki page and verify all form elements appear with correct attributes, IDs, and initial visibility states"
+          },
+          {
+            "id": 4,
+            "title": "Implement JavaScript file for AJAX functionality",
+            "description": "Create learning-path.js file with generatePath() and createTickets() functions for API communication",
+            "dependencies": [
+              "6.3"
+            ],
+            "details": "Create /chrome/learning/js/learning-path.js with functions: generatePath() to send query to /learntrac-api/generate endpoint, handle loading states, display chunk previews; createTickets() to send confirmed chunks to /learntrac-api/create-tickets endpoint. Include proper error handling and loading indicators.",
+            "status": "done",
+            "testStrategy": "Test JavaScript functions with mock API responses, verify loading states toggle correctly, and ensure error messages display appropriately"
+          },
+          {
+            "id": 5,
+            "title": "Add CSS styling for Learning Path components",
+            "description": "Create styles for the form, loading spinner, chunk preview cards, and buttons to match Trac's UI",
+            "dependencies": [
+              "6.3"
+            ],
+            "details": "Create /chrome/learning/css/learning-path.css with styles for: .spinner animation, .chunk-preview cards with borders and spacing, .button and .button.primary styles matching Trac theme, responsive textarea sizing, and error message styling.",
+            "status": "done",
+            "testStrategy": "Verify all components display correctly across different browsers, test responsive behavior, and ensure visual consistency with Trac's default theme"
+          },
+          {
+            "id": 6,
+            "title": "Implement chunk preview display logic",
+            "description": "Create JavaScript functions to render learning path chunks returned from the API in a user-friendly preview format",
+            "dependencies": [
+              "6.4"
+            ],
+            "details": "Add to learning-path.js: renderChunkPreview() function to display chunks with title, description, estimated time, and difficulty level. Create expandable/collapsible sections for each chunk. Include checkboxes for chunk selection/deselection before final creation.",
+            "status": "done",
+            "testStrategy": "Test with various chunk data structures, verify expand/collapse functionality works, and ensure checkbox states are properly tracked"
+          },
+          {
+            "id": 7,
+            "title": "Add CORS and API endpoint configuration",
+            "description": "Configure proper CORS headers and API endpoint URLs for communication with /learntrac-api service",
+            "dependencies": [
+              "6.4"
+            ],
+            "details": "Add configuration for API base URL (from environment or config), implement CORS headers in AJAX requests, add authentication headers with Cognito token, and handle different environments (dev/staging/prod) for API endpoints.",
+            "status": "done",
+            "testStrategy": "Test AJAX calls from Trac to learntrac-api endpoints, verify CORS headers are properly set, and ensure authentication tokens are included in requests"
+          },
+          {
+            "id": 8,
+            "title": "Implement error handling and user feedback",
+            "description": "Add comprehensive error handling for API failures, network issues, and validation errors with clear user messages",
+            "dependencies": [
+              "6.6",
+              "6.7"
+            ],
+            "details": "Implement error handlers for: network timeouts, API error responses (400, 401, 500), empty query validation, maximum query length validation. Display user-friendly error messages in the UI without technical details. Add retry mechanism for transient failures.",
+            "status": "done",
+            "testStrategy": "Test with various error scenarios including network disconnection, API errors, and invalid inputs. Verify appropriate error messages display for each case"
+          },
+          {
+            "id": 9,
+            "title": "Add progress tracking and status updates",
+            "description": "Implement visual feedback during API calls showing generation progress and status messages",
+            "dependencies": [
+              "6.8"
+            ],
+            "details": "Add progress indicators showing: 'Analyzing your query...', 'Generating learning path...', 'Creating tickets...' messages. Implement progress bar or step indicator if API supports progress callbacks. Add success confirmation with link to created learning path milestone.",
+            "status": "done",
+            "testStrategy": "Verify progress messages appear at appropriate times, test with slow API responses to ensure indicators remain visible, and confirm success message includes correct milestone link"
+          },
+          {
+            "id": 10,
+            "title": "Create integration tests for complete workflow",
+            "description": "Develop comprehensive tests covering the entire Learning Path creation flow from macro rendering to ticket creation",
+            "dependencies": [
+              "6.9"
+            ],
+            "details": "Write integration tests covering: macro rendering in wiki context, form submission with valid query, chunk preview display and interaction, ticket creation process, error scenarios. Use Trac's test framework and mock the learntrac-api responses.",
+            "status": "done",
+            "testStrategy": "Run full integration test suite ensuring all components work together, verify mock API calls are made with correct parameters, and test both success and failure paths end-to-end"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Implement ElastiCache Redis Caching Layer in /learntrac-api",
+        "description": "Create cache client in /learntrac-api directory for storing search results, progress data, and generated graphs using existing ElastiCache.",
+        "details": "# /learntrac-api/app/core/cache_client.py\nimport redis\nimport json\nfrom typing import Optional\nimport hashlib\n\nclass ElastiCacheClient:\n    def __init__(self):\n        self.redis = redis.Redis(\n            host=os.environ['ELASTICACHE_ENDPOINT'],\n            port=6379,\n            decode_responses=True\n        )\n    \n    async def get_cached_search(self, query: str, user_id: str) -> Optional[dict]:\n        key = f'search:{hashlib.md5(query.encode()).hexdigest()}:{user_id}'\n        result = self.redis.get(key)\n        return json.loads(result) if result else None\n    \n    async def cache_search_results(self, query: str, user_id: str, results: dict, ttl=3600):\n        key = f'search:{hashlib.md5(query.encode()).hexdigest()}:{user_id}'\n        self.redis.setex(key, ttl, json.dumps(results))\n    \n    async def get_user_progress(self, user_id: str, ticket_id: int) -> Optional[dict]:\n        key = f'progress:{user_id}:{ticket_id}'\n        result = self.redis.get(key)\n        return json.loads(result) if result else None\n    \n    async def cache_user_progress(self, user_id: str, ticket_id: int, progress: dict, ttl=900):\n        key = f'progress:{user_id}:{ticket_id}'\n        self.redis.setex(key, ttl, json.dumps(progress))\n    \n    async def invalidate_graph_cache(self, milestone: str, user_id: str):\n        key = f'graph:{milestone}:{user_id}'\n        self.redis.delete(key)",
+        "testStrategy": "Test cache operations with various data types connecting to existing ElastiCache, verify TTL expiration, and test cache invalidation scenarios.",
+        "priority": "medium",
+        "dependencies": [
+          4
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up ElastiCache connection configuration",
+            "description": "Configure Redis connection parameters and environment variables for ElastiCache endpoint in /learntrac-api",
+            "dependencies": [],
+            "details": "Create configuration module to handle ElastiCache connection settings. Add ELASTICACHE_ENDPOINT to environment variables and .env.example. Implement connection pooling and retry logic for Redis client initialization. Configure SSL/TLS if required by ElastiCache security group.",
+            "status": "done",
+            "testStrategy": "Test connection establishment with mock Redis server, verify environment variable loading, test connection retry logic with simulated failures"
+          },
+          {
+            "id": 2,
+            "title": "Implement base cache client class with error handling",
+            "description": "Create ElastiCacheClient base class with connection management, error handling, and logging in /learntrac-api/app/core/cache_client.py",
+            "dependencies": [
+              "7.1"
+            ],
+            "details": "Implement singleton pattern for cache client. Add comprehensive error handling for Redis connection failures, timeout errors, and serialization issues. Include logging for all cache operations. Add health check method to verify Redis connectivity.",
+            "status": "done",
+            "testStrategy": "Unit test error handling scenarios, verify singleton behavior, test health check method, mock Redis exceptions"
+          },
+          {
+            "id": 3,
+            "title": "Create search result caching methods",
+            "description": "Implement get_cached_search and cache_search_results methods with proper key generation and TTL management",
+            "dependencies": [
+              "7.2"
+            ],
+            "details": "Use MD5 hashing for query normalization in cache keys. Implement proper JSON serialization for complex search results. Add support for different TTL values based on search type. Include cache hit/miss metrics logging.",
+            "status": "done",
+            "testStrategy": "Test caching with various query formats, verify TTL expiration, test serialization of complex result objects, measure cache hit rates"
+          },
+          {
+            "id": 4,
+            "title": "Implement user progress caching functionality",
+            "description": "Create get_user_progress and cache_user_progress methods for storing learning progress data with appropriate TTL",
+            "dependencies": [
+              "7.2"
+            ],
+            "details": "Design cache key structure for user progress including user_id and ticket_id. Implement atomic operations for progress updates. Add support for partial progress updates. Include progress versioning to handle concurrent updates.",
+            "status": "done",
+            "testStrategy": "Test concurrent progress updates, verify atomic operations, test TTL behavior for progress data, validate data integrity"
+          },
+          {
+            "id": 5,
+            "title": "Add graph data caching and invalidation",
+            "description": "Implement methods for caching generated graph data and invalidate_graph_cache for milestone-based invalidation",
+            "dependencies": [
+              "7.2"
+            ],
+            "details": "Create cache_graph_data method for storing visualization data. Implement pattern-based cache invalidation for milestone updates. Add support for different graph types (progress, dependency, learning path). Include compression for large graph data.",
+            "status": "done",
+            "testStrategy": "Test graph data caching with various sizes, verify invalidation removes all related keys, test compression effectiveness"
+          },
+          {
+            "id": 6,
+            "title": "Integrate cache client with FastAPI dependency injection",
+            "description": "Set up ElastiCacheClient as a FastAPI dependency and integrate with existing API endpoints in /learntrac-api",
+            "dependencies": [
+              "7.3",
+              "7.4",
+              "7.5"
+            ],
+            "details": "Create FastAPI dependency function for cache client injection. Update existing endpoints to use cache for search results and progress data. Add cache-control headers to API responses. Implement cache warming strategies for frequently accessed data.",
+            "status": "done",
+            "testStrategy": "Integration test with FastAPI endpoints, verify dependency injection works correctly, test cache headers in responses"
+          },
+          {
+            "id": 7,
+            "title": "Implement cache statistics and monitoring",
+            "description": "Add methods to track cache performance metrics and expose monitoring endpoints",
+            "dependencies": [
+              "7.6"
+            ],
+            "details": "Create cache_stats method to return hit/miss ratios, memory usage, and key counts. Add CloudWatch metrics integration for cache monitoring. Implement cache size management and eviction policies. Create admin endpoint for cache statistics.",
+            "status": "done",
+            "testStrategy": "Test metrics calculation accuracy, verify CloudWatch integration, test admin endpoint security"
+          },
+          {
+            "id": 8,
+            "title": "Add cache warming and preloading functionality",
+            "description": "Implement cache warming strategies for frequently accessed data on service startup",
+            "dependencies": [
+              "7.6"
+            ],
+            "details": "Create cache warming service that runs on application startup. Identify and preload frequently accessed search queries and user progress. Implement scheduled cache refresh for stale data. Add configuration for cache warming strategies.",
+            "status": "done",
+            "testStrategy": "Test startup performance with cache warming, verify preloaded data accuracy, test scheduled refresh functionality"
+          },
+          {
+            "id": 9,
+            "title": "Create cache management CLI commands",
+            "description": "Develop CLI tools for cache administration including clear, inspect, and export operations",
+            "dependencies": [
+              "7.7"
+            ],
+            "details": "Implement CLI commands using Click or Typer for cache management. Add commands for clearing specific cache patterns, inspecting cache contents, and exporting cache statistics. Include safety checks for production cache clearing.",
+            "status": "done",
+            "testStrategy": "Test CLI commands with various parameters, verify safety checks prevent accidental data loss, test export functionality"
+          },
+          {
+            "id": 10,
+            "title": "Implement comprehensive integration tests",
+            "description": "Create end-to-end tests for cache integration with Learning Service API and verify performance improvements",
+            "dependencies": [
+              "7.8",
+              "7.9"
+            ],
+            "details": "Write integration tests covering all cache scenarios including search, progress, and graph caching. Benchmark API performance with and without caching. Test cache behavior under high load. Verify cache consistency with database state.",
+            "status": "done",
+            "testStrategy": "Run load tests to verify performance improvements, test cache consistency after database updates, measure response time improvements"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Build LLM Integration for Question Generation in /learntrac-api",
+        "description": "Implement service in /learntrac-api directory to generate questions from chunk content using LLM API via existing API Gateway.",
+        "details": "# /learntrac-api/app/services/llm_service.py\nimport aiohttp\nimport os\n\nclass LLMService:\n    def __init__(self):\n        self.api_gateway_url = os.environ['API_GATEWAY_URL']\n        self.api_key = os.environ['LLM_API_KEY']\n    \n    async def generate_question(self, chunk_content: str, concept: str, difficulty: int, context: str) -> dict:\n        prompt = f\"\"\"\n        Create a question that tests understanding of this concept:\n        Concept: {concept}\n        Content: {chunk_content}\n        Difficulty Level: {difficulty}/5\n        Learning Context: {context}\n        \n        Return:\n        1. A clear question (100-500 characters)\n        2. An expected answer (200-1000 characters)\n        \"\"\"\n        \n        async with aiohttp.ClientSession() as session:\n            headers = {\n                'Authorization': f'Bearer {self.api_key}',\n                'Content-Type': 'application/json'\n            }\n            \n            payload = {\n                'model': 'gpt-4',\n                'messages': [\n                    {'role': 'system', 'content': 'You are an expert educator creating learning assessment questions.'},\n                    {'role': 'user', 'content': prompt}\n                ],\n                'temperature': 0.7\n            }\n            \n            async with session.post(f'{self.api_gateway_url}/api/v1/llm/generate', \n                                  json=payload, headers=headers) as response:\n                result = await response.json()\n                \n        # Parse response to extract question and expected answer\n        return {\n            'question': extract_question(result),\n            'expected_answer': extract_answer(result)\n        }",
+        "testStrategy": "Test question generation with various chunk types, verify questions are appropriate difficulty and answers are comprehensive using existing API Gateway setup.",
+        "priority": "high",
+        "dependencies": [
+          4
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up LLMService class structure and configuration",
+            "description": "Create the base LLMService class in /learntrac-api/app/services/llm_service.py with proper initialization, environment variable loading, and error handling setup",
+            "dependencies": [],
+            "details": "Initialize the LLMService class with API Gateway URL and API key from environment variables. Set up proper logging, timeout configurations, and connection pooling for aiohttp. Include retry logic configuration and circuit breaker pattern for resilience.",
+            "status": "done",
+            "testStrategy": "Unit test class initialization with mocked environment variables, verify proper configuration loading, test error handling when environment variables are missing"
+          },
+          {
+            "id": 2,
+            "title": "Implement prompt engineering for question generation",
+            "description": "Design and implement sophisticated prompt templates that generate high-quality educational questions based on chunk content, concept, difficulty level, and learning context",
+            "dependencies": [
+              "8.1"
+            ],
+            "details": "Create modular prompt templates that adapt based on difficulty level (1-5 scale). Include instructions for generating questions that test comprehension, application, and analysis. Ensure prompts generate both the question (100-500 chars) and expected answer (200-1000 chars) with clear formatting.",
+            "status": "done",
+            "testStrategy": "Test prompt templates with various chunk types (text, code, diagrams), verify output format consistency, validate character length constraints, test difficulty scaling"
+          },
+          {
+            "id": 3,
+            "title": "Implement API Gateway communication with async/await",
+            "description": "Create the async method to communicate with the API Gateway's LLM endpoint, handling authentication, request formatting, and response processing",
+            "dependencies": [
+              "8.1"
+            ],
+            "details": "Implement generate_question method using aiohttp for async HTTP calls. Include proper headers with Bearer token authentication, JSON payload construction with GPT-4 model specification, and temperature settings. Handle connection timeouts and HTTP errors gracefully.",
+            "status": "done",
+            "testStrategy": "Integration test with mocked API Gateway responses, test timeout handling, verify proper authentication header formatting, test various HTTP status code scenarios"
+          },
+          {
+            "id": 4,
+            "title": "Create response parsing and extraction functions",
+            "description": "Implement extract_question and extract_answer functions to parse LLM responses and extract structured question and answer data",
+            "dependencies": [
+              "8.3"
+            ],
+            "details": "Parse JSON responses from the LLM API, handle various response formats, extract question and answer fields with validation. Include fallback logic for malformed responses and implement content sanitization to remove unwanted formatting or artifacts.",
+            "status": "done",
+            "testStrategy": "Unit test parsing functions with various LLM response formats, test edge cases with malformed JSON, verify extraction accuracy, test sanitization logic"
+          },
+          {
+            "id": 5,
+            "title": "Add question quality validation and filtering",
+            "description": "Implement validation logic to ensure generated questions meet quality standards and educational requirements",
+            "dependencies": [
+              "8.4"
+            ],
+            "details": "Validate question length (100-500 chars), answer length (200-1000 chars), check for completeness and coherence, ensure questions are relevant to the concept and chunk content. Filter out low-quality or incomplete generations.",
+            "status": "done",
+            "testStrategy": "Test validation with boundary cases, verify rejection of incomplete questions, test relevance scoring, validate educational appropriateness checks"
+          },
+          {
+            "id": 6,
+            "title": "Implement caching mechanism for generated questions",
+            "description": "Add caching layer to store previously generated questions and reduce API calls for identical content",
+            "dependencies": [
+              "8.5"
+            ],
+            "details": "Implement Redis-based caching with content hash as key. Cache successful question generations with TTL based on content type. Include cache invalidation logic and metrics for cache hit/miss rates.",
+            "status": "done",
+            "testStrategy": "Test cache hit/miss scenarios, verify TTL functionality, test cache invalidation, measure performance improvements with caching enabled"
+          },
+          {
+            "id": 7,
+            "title": "Add comprehensive error handling and retry logic",
+            "description": "Implement robust error handling for all failure scenarios including API timeouts, rate limits, and service unavailability",
+            "dependencies": [
+              "8.3",
+              "8.6"
+            ],
+            "details": "Implement exponential backoff for retries, handle specific error codes (429 for rate limit, 503 for service unavailable), add circuit breaker pattern to prevent cascading failures. Include detailed error logging and metrics collection.",
+            "status": "done",
+            "testStrategy": "Test retry logic with simulated failures, verify exponential backoff timing, test circuit breaker activation/deactivation, validate error logging completeness"
+          },
+          {
+            "id": 8,
+            "title": "Create service integration endpoints in FastAPI",
+            "description": "Develop FastAPI endpoints in /learntrac-api to expose the LLM service functionality to other components",
+            "dependencies": [
+              "8.7"
+            ],
+            "details": "Create POST /api/v1/questions/generate endpoint with request validation, authentication middleware integration, and proper response formatting. Include request rate limiting per user and API documentation with OpenAPI schema.",
+            "status": "done",
+            "testStrategy": "API integration tests with various payloads, test authentication requirements, verify rate limiting functionality, validate OpenAPI documentation accuracy"
+          },
+          {
+            "id": 9,
+            "title": "Implement monitoring and observability",
+            "description": "Add comprehensive monitoring, metrics collection, and distributed tracing for the LLM service",
+            "dependencies": [
+              "8.8"
+            ],
+            "details": "Integrate with CloudWatch for metrics (request count, latency, error rates), implement distributed tracing with X-Ray, add structured logging with correlation IDs. Include custom metrics for question quality scores and generation success rates.",
+            "status": "done",
+            "testStrategy": "Verify metrics are properly exported to CloudWatch, test trace propagation across service boundaries, validate log formatting and correlation ID flow"
+          },
+          {
+            "id": 10,
+            "title": "Create comprehensive test suite and documentation",
+            "description": "Develop full test coverage including unit tests, integration tests, and end-to-end tests, along with detailed API documentation",
+            "dependencies": [
+              "8.9"
+            ],
+            "details": "Write pytest-based unit tests for all methods, create integration tests with mocked external services, implement end-to-end tests using test containers. Document API usage, configuration options, and deployment procedures. Include performance benchmarks and load testing scenarios.",
+            "status": "done",
+            "testStrategy": "Achieve 90%+ code coverage, run load tests simulating 100+ concurrent users, validate all edge cases are tested, ensure documentation examples are executable"
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "Create Ticket Creation Service with Prerequisites in /learntrac-api",
+        "description": "Implement service in /learntrac-api directory to create Trac tickets from chunks with learning metadata and prerequisite relationships, connecting to existing RDS.",
+        "details": "# /learntrac-api/app/services/ticket_service.py\nimport asyncpg\nfrom typing import List, Dict\nimport uuid\n\nclass TicketCreationService:\n    def __init__(self, db_pool):\n        self.db_pool = db_pool\n    \n    async def create_learning_path(self, user_id: str, query: str, chunks: List[Dict]) -> uuid.UUID:\n        async with self.db_pool.acquire() as conn:\n            async with conn.transaction():\n                # Create learning path\n                path_id = await conn.fetchval(\n                    \"INSERT INTO learning.paths (title, query_text, cognito_user_id, total_chunks) \"\n                    \"VALUES ($1, $2, $3, $4) RETURNING id\",\n                    f\"Learning Path: {query[:50]}...\", query, user_id, len(chunks)\n                )\n                \n                # Create tickets for each chunk\n                ticket_map = {}\n                for chunk in chunks:\n                    # Generate question\n                    question_data = await llm_service.generate_question(\n                        chunk['content'], chunk['concept'], 3, query\n                    )\n                    \n                    # Create ticket\n                    ticket_id = await conn.fetchval(\n                        \"INSERT INTO ticket (type, time, changetime, milestone, status, \"\n                        \"resolution, summary, description, owner, reporter) \"\n                        \"VALUES ('learning_concept', $1, $1, $2, 'new', '', $3, $4, $5, 'learning-system') \"\n                        \"RETURNING id\",\n                        int(time.time()), chunk['subject'], chunk['concept'], \n                        chunk['content'], user_id\n                    )\n                    \n                    # Store custom fields\n                    await conn.executemany(\n                        \"INSERT INTO ticket_custom (ticket, name, value) VALUES ($1, $2, $3)\",\n                        [\n                            (ticket_id, 'question', question_data['question']),\n                            (ticket_id, 'expected_answer', question_data['expected_answer']),\n                            (ticket_id, 'question_difficulty', '3'),\n                            (ticket_id, 'question_context', query),\n                            (ticket_id, 'chunk_id', chunk['id']),\n                            (ticket_id, 'cognito_user_id', user_id)\n                        ]\n                    )\n                    \n                    # Store metadata\n                    await conn.execute(\n                        \"INSERT INTO learning.concept_metadata \"\n                        \"(ticket_id, path_id, chunk_id, relevance_score) \"\n                        \"VALUES ($1, $2, $3, $4)\",\n                        ticket_id, path_id, chunk['id'], chunk['score']\n                    )\n                    \n                    ticket_map[chunk['concept']] = ticket_id\n                \n                # Create prerequisites\n                for chunk in chunks:\n                    if chunk.get('has_prerequisite'):\n                        if chunk['has_prerequisite'] in ticket_map and chunk['concept'] in ticket_map:\n                            await conn.execute(\n                                \"INSERT INTO learning.prerequisites \"\n                                \"(concept_ticket_id, prerequisite_ticket_id) VALUES ($1, $2)\",\n                                ticket_map[chunk['concept']], \n                                ticket_map[chunk['has_prerequisite']]\n                            )\n                \n                return path_id",
+        "testStrategy": "Verify tickets are created with all custom fields in existing RDS, prerequisites are correctly linked, and transaction rollback works on failure.",
+        "priority": "high",
+        "dependencies": [
+          2,
+          8
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up TicketCreationService class structure and dependencies",
+            "description": "Create the basic class structure for TicketCreationService in /learntrac-api/app/services/ticket_service.py with proper imports and initialization",
+            "dependencies": [],
+            "details": "Import required modules (asyncpg, typing, uuid, time), create the TicketCreationService class with __init__ method that accepts a database pool connection. Set up proper error handling imports and logging configuration.",
+            "status": "done",
+            "testStrategy": "Verify the service can be instantiated with a mock database pool and all imports are resolved correctly"
+          },
+          {
+            "id": 2,
+            "title": "Implement learning path creation method",
+            "description": "Create the create_learning_path method that inserts a new learning path record into the learning.paths table",
+            "dependencies": [
+              "9.1"
+            ],
+            "details": "Implement the async method that accepts user_id, query, and chunks parameters. Use the database pool to acquire a connection and start a transaction. Insert the learning path record with title (truncated query), query_text, cognito_user_id, and total_chunks count. Return the generated path_id UUID.",
+            "status": "done",
+            "testStrategy": "Test that learning paths are created successfully with mock data and verify the returned UUID is valid"
+          },
+          {
+            "id": 3,
+            "title": "Create LLM service integration for question generation",
+            "description": "Implement or integrate with an LLM service to generate questions from chunk content",
+            "dependencies": [
+              "9.1"
+            ],
+            "details": "Create an llm_service module or integrate with existing LLM service. Implement generate_question method that accepts chunk content, concept, difficulty level (3), and query context. The method should return a dictionary with 'question' and 'expected_answer' keys.",
+            "status": "done",
+            "testStrategy": "Mock the LLM service responses and verify question generation returns properly formatted data"
+          },
+          {
+            "id": 4,
+            "title": "Implement Trac ticket creation logic",
+            "description": "Add logic to create Trac tickets for each chunk with proper metadata",
+            "dependencies": [
+              "9.2",
+              "9.3"
+            ],
+            "details": "Within the transaction, iterate through chunks and create a ticket for each one. Insert into the ticket table with type='learning_concept', appropriate timestamps, milestone set to chunk['subject'], status='new', summary as chunk['concept'], description as chunk['content'], and owner/reporter fields. Store the ticket_id in a ticket_map dictionary keyed by concept.",
+            "status": "done",
+            "testStrategy": "Verify tickets are created with all required fields and ticket_map correctly maps concepts to ticket IDs"
+          },
+          {
+            "id": 5,
+            "title": "Implement ticket custom fields storage",
+            "description": "Store learning-specific custom fields for each created ticket",
+            "dependencies": [
+              "9.4"
+            ],
+            "details": "Use executemany to efficiently insert multiple custom field records for each ticket: question, expected_answer, question_difficulty (hardcoded to 3), question_context (the query), chunk_id, and cognito_user_id. Ensure all custom fields are properly associated with the ticket_id.",
+            "status": "done",
+            "testStrategy": "Verify all custom fields are correctly inserted and can be retrieved for each ticket"
+          },
+          {
+            "id": 6,
+            "title": "Create concept metadata storage",
+            "description": "Store learning concept metadata linking tickets to paths and chunks",
+            "dependencies": [
+              "9.4"
+            ],
+            "details": "Insert records into learning.concept_metadata table for each ticket, storing ticket_id, path_id, chunk_id, and relevance_score from the chunk data. This creates the relationship between tickets, learning paths, and the original chunks.",
+            "status": "done",
+            "testStrategy": "Verify metadata records are created and properly link tickets to paths and chunks"
+          },
+          {
+            "id": 7,
+            "title": "Implement prerequisite relationship creation",
+            "description": "Create prerequisite relationships between tickets based on chunk dependencies",
+            "dependencies": [
+              "9.4",
+              "9.6"
+            ],
+            "details": "After all tickets are created, iterate through chunks again to create prerequisite relationships. For chunks with 'has_prerequisite' field, look up both the concept and prerequisite concept in ticket_map. If both exist, insert a record into learning.prerequisites table linking concept_ticket_id to prerequisite_ticket_id.",
+            "status": "done",
+            "testStrategy": "Test that prerequisite relationships are correctly created only when both tickets exist in the map"
+          },
+          {
+            "id": 8,
+            "title": "Add transaction management and error handling",
+            "description": "Implement proper transaction handling with rollback on failures",
+            "dependencies": [
+              "9.2",
+              "9.4",
+              "9.5",
+              "9.6",
+              "9.7"
+            ],
+            "details": "Wrap all database operations in a transaction context. Add try-except blocks to catch database errors, LLM service errors, and validation errors. Ensure the transaction is rolled back if any error occurs during the process. Log errors appropriately and raise custom exceptions with meaningful error messages.",
+            "status": "done",
+            "testStrategy": "Test transaction rollback by simulating failures at different stages and verify no partial data is committed"
+          },
+          {
+            "id": 9,
+            "title": "Add input validation and sanitization",
+            "description": "Validate and sanitize all input parameters before processing",
+            "dependencies": [
+              "9.1"
+            ],
+            "details": "Add validation for user_id (non-empty string), query (non-empty string with reasonable length limit), and chunks (non-empty list with required fields). Validate each chunk has required fields: id, content, concept, subject, score. Optionally validate has_prerequisite field. Sanitize text inputs to prevent SQL injection.",
+            "status": "done",
+            "testStrategy": "Test with invalid inputs (empty values, missing fields, malformed data) and verify appropriate errors are raised"
+          },
+          {
+            "id": 10,
+            "title": "Create service integration tests and documentation",
+            "description": "Write comprehensive integration tests and API documentation for the service",
+            "dependencies": [
+              "9.1",
+              "9.2",
+              "9.3",
+              "9.4",
+              "9.5",
+              "9.6",
+              "9.7",
+              "9.8",
+              "9.9"
+            ],
+            "details": "Create integration tests that verify the complete flow: learning path creation, ticket generation with all fields, prerequisite linking, and proper transaction handling. Test with various chunk configurations including chunks with and without prerequisites. Document the service API including expected input format, return values, and error scenarios.",
+            "status": "done",
+            "testStrategy": "Run integration tests against a test database instance and verify all components work together correctly"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Implement Custom Ticket Display for Questions",
+        "description": "Create Trac plugin to display questions prominently in ticket view with answer submission area, integrating with Learning Service API in /learntrac-api.",
+        "details": "# plugins/learning_ticket.py\nfrom trac.core import Component, implements\nfrom trac.ticket.api import ITicketManipulator\nfrom trac.web.chrome import ITemplateProvider\nfrom genshi.builder import tag\n\nclass LearningTicketDisplay(Component):\n    implements(ITicketManipulator, ITemplateProvider)\n    \n    def prepare_ticket(self, req, ticket, fields, actions):\n        if ticket['type'] == 'learning_concept':\n            # Load custom fields\n            question = self._get_custom_field(ticket.id, 'question')\n            difficulty = self._get_custom_field(ticket.id, 'question_difficulty')\n            context = self._get_custom_field(ticket.id, 'question_context')\n            \n            # Load user progress from Learning Service API\n            user_id = req.session.get('cognito_sub')\n            progress = self._get_user_progress(user_id, ticket.id)\n            \n            # Add to template data\n            req.data['learning_question'] = question\n            req.data['question_difficulty'] = difficulty\n            req.data['question_context'] = context\n            req.data['user_progress'] = progress\n            req.data['show_answer_form'] = True\n    \n    def _render_answer_section(self, req, ticket):\n        progress = req.data.get('user_progress', {})\n        \n        return tag.div(\n            tag.h3('Learning Question', class_='learning-header'),\n            tag.div(\n                tag.p(req.data['learning_question'], class_='question-text'),\n                tag.p(f\"Difficulty: {req.data['question_difficulty']}/5\", class_='difficulty'),\n                tag.p(f\"Context: {req.data['question_context']}\", class_='context')\n            ),\n            tag.div(\n                tag.h4('Your Answer'),\n                tag.textarea(\n                    progress.get('last_answer', ''),\n                    name='student_answer',\n                    rows='10',\n                    cols='80',\n                    placeholder='Type your answer here...'\n                ),\n                tag.br(),\n                tag.input(\n                    type='button',\n                    value='Submit Answer',\n                    onclick=f'submitAnswer({ticket.id})',\n                    class_='button primary'\n                )\n            ),\n            self._render_previous_attempt(progress) if progress else '',\n            id='learning-answer-section'\n        )",
+        "testStrategy": "Test that learning tickets display questions correctly, answer submission works with Learning Service in /learntrac-api, and previous attempts are shown properly.",
+        "priority": "high",
+        "dependencies": [
+          3,
+          9
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up Trac plugin structure and component interfaces",
+            "description": "Create the basic plugin structure implementing ITicketManipulator and ITemplateProvider interfaces for the LearningTicketDisplay component",
+            "dependencies": [],
+            "details": "Create plugins/learning_ticket.py with proper Trac component structure, implement required interface methods (prepare_ticket, validate_ticket, get_htdocs_dirs, get_templates_dirs), and ensure plugin registration in setup.py",
+            "status": "done",
+            "testStrategy": "Test plugin loads correctly in Trac, verify component appears in admin panel, and check that interface methods are called when viewing tickets"
+          },
+          {
+            "id": 2,
+            "title": "Implement custom field retrieval for learning questions",
+            "description": "Create _get_custom_field method to retrieve question, difficulty, and context fields from Trac's custom field system",
+            "dependencies": [
+              "10.1"
+            ],
+            "details": "Implement database queries to fetch custom fields from trac_ticket_custom table, handle missing fields gracefully, and ensure proper encoding/decoding of stored values",
+            "status": "done",
+            "testStrategy": "Test retrieval of all custom fields with various data types, verify handling of missing fields returns appropriate defaults, and test with special characters in field values"
+          },
+          {
+            "id": 3,
+            "title": "Integrate with Learning Service API client",
+            "description": "Create HTTP client to communicate with FastAPI Learning Service in /learntrac-api for retrieving user progress data",
+            "dependencies": [
+              "10.1"
+            ],
+            "details": "Implement _get_user_progress method using requests library, handle authentication with JWT tokens from session, implement retry logic and error handling for API calls, and parse JSON responses into appropriate data structures",
+            "status": "done",
+            "testStrategy": "Mock Learning Service API responses, test authentication flow with valid/invalid tokens, verify error handling for network failures, and test response parsing"
+          },
+          {
+            "id": 4,
+            "title": "Create question display template components",
+            "description": "Build Genshi template components to render learning questions with proper styling and structure",
+            "dependencies": [
+              "10.2",
+              "10.3"
+            ],
+            "details": "Create HTML structure using Genshi's tag builder for question display, implement CSS classes for styling (learning-header, question-text, difficulty, context), and ensure responsive design for various screen sizes",
+            "status": "done",
+            "testStrategy": "Test rendering with different question lengths and formats, verify CSS classes are applied correctly, and test responsive behavior on mobile/desktop views"
+          },
+          {
+            "id": 5,
+            "title": "Implement answer submission form and textarea",
+            "description": "Create interactive answer submission area with textarea and submit button functionality",
+            "dependencies": [
+              "10.4"
+            ],
+            "details": "Build textarea component with proper sizing and placeholder text, implement submit button with onclick handler calling submitAnswer() JavaScript function, preserve previous answer content from user progress data, and add form validation",
+            "status": "done",
+            "testStrategy": "Test textarea resizing and text entry, verify previous answers are pre-populated correctly, test submit button state management, and validate form submission prevents empty answers"
+          },
+          {
+            "id": 6,
+            "title": "Create JavaScript handler for answer submission",
+            "description": "Implement client-side JavaScript to handle answer submission via AJAX to Learning Service API",
+            "dependencies": [
+              "10.5"
+            ],
+            "details": "Create submitAnswer() function to gather form data, implement AJAX POST request to /learntrac-api/answers endpoint, handle loading states and disable button during submission, display success/error messages to user, and update UI after successful submission",
+            "status": "done",
+            "testStrategy": "Test AJAX submission with valid/invalid data, verify loading states and button disabling, test error message display for various failure scenarios, and confirm UI updates after submission"
+          },
+          {
+            "id": 7,
+            "title": "Implement previous attempt display functionality",
+            "description": "Create _render_previous_attempt method to show user's previous answers and feedback",
+            "dependencies": [
+              "10.4",
+              "10.5"
+            ],
+            "details": "Build UI component to display previous attempt data including timestamp, submitted answer, and any feedback received, implement collapsible/expandable sections for multiple attempts, and format timestamps in user-friendly format",
+            "status": "done",
+            "testStrategy": "Test display with no previous attempts, single attempt, and multiple attempts, verify timestamp formatting across timezones, and test collapsible UI functionality"
+          },
+          {
+            "id": 8,
+            "title": "Add ticket type filtering and conditional rendering",
+            "description": "Ensure learning question display only appears for 'learning_concept' ticket types",
+            "dependencies": [
+              "10.1",
+              "10.4"
+            ],
+            "details": "Implement ticket type checking in prepare_ticket method, add conditional logic to only load learning data for appropriate tickets, ensure non-learning tickets display normally without modifications",
+            "status": "done",
+            "testStrategy": "Test with learning_concept tickets to verify custom display, test with regular tickets to ensure no modifications, and verify performance impact is minimal for non-learning tickets"
+          },
+          {
+            "id": 9,
+            "title": "Implement error handling and fallback displays",
+            "description": "Add comprehensive error handling for API failures and missing data scenarios",
+            "dependencies": [
+              "10.3",
+              "10.6",
+              "10.7"
+            ],
+            "details": "Handle Learning Service API timeouts and failures gracefully, display appropriate error messages to users, implement fallback UI when data is unavailable, log errors for debugging, and ensure partial data still displays correctly",
+            "status": "done",
+            "testStrategy": "Test with Learning Service unavailable, simulate API timeouts and errors, verify error messages are user-friendly, and ensure partial data scenarios work correctly"
+          },
+          {
+            "id": 10,
+            "title": "Add caching layer for Learning Service API calls",
+            "description": "Implement caching to reduce API calls and improve performance using Trac's cache system",
+            "dependencies": [
+              "10.3",
+              "10.9"
+            ],
+            "details": "Cache user progress data with appropriate TTL, implement cache invalidation on answer submission, use Trac's built-in caching mechanisms, ensure cache keys include user ID and ticket ID for proper isolation",
+            "status": "done",
+            "testStrategy": "Test cache hit/miss scenarios, verify TTL expiration works correctly, test cache invalidation on new submissions, and measure performance improvements with caching enabled"
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Build Answer Evaluation Service with LLM in /learntrac-api",
+        "description": "Create service in /learntrac-api directory to evaluate student answers using LLM and update progress tracking in existing RDS.",
+        "details": "# /learntrac-api/app/services/evaluation_service.py\nclass AnswerEvaluationService:\n    def __init__(self, db_pool, llm_service, cache_client):\n        self.db_pool = db_pool\n        self.llm_service = llm_service\n        self.cache_client = cache_client\n    \n    async def evaluate_answer(self, user_id: str, ticket_id: int, student_answer: str) -> dict:\n        async with self.db_pool.acquire() as conn:\n            # Get question data\n            question_data = await conn.fetchrow(\n                \"SELECT tc1.value as question, tc2.value as expected_answer, \"\n                \"tc3.value as context, tc4.value as difficulty \"\n                \"FROM ticket_custom tc1 \"\n                \"JOIN ticket_custom tc2 ON tc1.ticket = tc2.ticket AND tc2.name = 'expected_answer' \"\n                \"JOIN ticket_custom tc3 ON tc1.ticket = tc3.ticket AND tc3.name = 'question_context' \"\n                \"JOIN ticket_custom tc4 ON tc1.ticket = tc4.ticket AND tc4.name = 'question_difficulty' \"\n                \"WHERE tc1.ticket = $1 AND tc1.name = 'question'\",\n                ticket_id\n            )\n            \n            # Evaluate with LLM\n            evaluation_prompt = f\"\"\"\n            Evaluate this student answer:\n            Question: {question_data['question']}\n            Expected Answer: {question_data['expected_answer']}\n            Student Answer: {student_answer}\n            Context: {question_data['context']}\n            \n            Provide:\n            1. Score from 0.0 to 1.0 (0.8+ means mastery)\n            2. Specific feedback on what was correct/incorrect\n            3. Suggestions for improvement if score < 0.8\n            \"\"\"\n            \n            evaluation = await self.llm_service.evaluate_answer(evaluation_prompt)\n            \n            # Update progress\n            status = 'mastered' if evaluation['score'] >= 0.8 else 'studying'\n            \n            await conn.execute(\n                \"INSERT INTO learning.progress \"\n                \"(cognito_user_id, ticket_id, status, last_answer, answer_score, \"\n                \"answer_feedback, last_accessed) \"\n                \"VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP) \"\n                \"ON CONFLICT (cognito_user_id, ticket_id) DO UPDATE SET \"\n                \"status = $3, last_answer = $4, answer_score = $5, \"\n                \"answer_feedback = $6, last_accessed = CURRENT_TIMESTAMP\",\n                user_id, ticket_id, status, student_answer, \n                evaluation['score'], evaluation['feedback']\n            )\n            \n            # Update ticket status if mastered\n            if status == 'mastered':\n                await conn.execute(\n                    \"UPDATE ticket SET status = 'closed', resolution = 'fixed' \"\n                    \"WHERE id = $1\", ticket_id\n                )\n            \n            # Cache progress using existing ElastiCache\n            await self.cache_client.cache_user_progress(\n                user_id, ticket_id, \n                {'status': status, 'score': evaluation['score'], \n                 'feedback': evaluation['feedback']}\n            )\n            \n            # Invalidate graph cache\n            milestone = await conn.fetchval(\n                \"SELECT milestone FROM ticket WHERE id = $1\", ticket_id\n            )\n            await self.cache_client.invalidate_graph_cache(milestone, user_id)\n            \n            return evaluation",
+        "testStrategy": "Test evaluation with various answer qualities, verify scoring consistency, and ensure progress updates correctly in existing RDS and ElastiCache.",
+        "priority": "high",
+        "dependencies": [
+          8,
+          10
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Design LLM Service Interface and Prompt Templates",
+            "description": "Create comprehensive interface design for LLM service including evaluation prompt templates, scoring rubrics, and response parsing structures",
+            "dependencies": [],
+            "details": "Define the LLMService interface with methods for evaluate_answer(), including prompt engineering for consistent scoring. Create templates that consider question type, difficulty level, and expected answer format. Design JSON response schema for scores, feedback, and improvement suggestions.",
+            "status": "done",
+            "testStrategy": "Create unit tests with mock prompts and expected response formats. Test various prompt variations to ensure consistent evaluation criteria."
+          },
+          {
+            "id": 2,
+            "title": "Implement Core AnswerEvaluationService Class Structure",
+            "description": "Build the base AnswerEvaluationService class with dependency injection for database pool, LLM service, and cache client",
+            "dependencies": [
+              "11.1"
+            ],
+            "details": "Create /learntrac-api/app/services/evaluation_service.py with proper class initialization, error handling, and logging setup. Implement connection pooling patterns and ensure thread-safe operations for concurrent evaluations.",
+            "status": "done",
+            "testStrategy": "Test class instantiation with mock dependencies. Verify proper initialization and dependency injection patterns."
+          },
+          {
+            "id": 3,
+            "title": "Implement Database Query for Question Data Retrieval",
+            "description": "Create optimized SQL queries to fetch question, expected answer, context, and difficulty from Trac ticket_custom table",
+            "dependencies": [
+              "11.2"
+            ],
+            "details": "Implement the database query using asyncpg to join ticket_custom table entries efficiently. Add proper indexing recommendations and query optimization. Handle cases where custom fields might be missing or null.",
+            "status": "done",
+            "testStrategy": "Test queries against sample Trac database with various ticket configurations. Verify performance with explain analyze and ensure proper null handling."
+          },
+          {
+            "id": 4,
+            "title": "Build LLM Evaluation Logic with Scoring Algorithm",
+            "description": "Implement the core evaluation logic that sends prompts to LLM and parses responses into structured evaluation results",
+            "dependencies": [
+              "11.3"
+            ],
+            "details": "Create robust prompt construction logic that formats question data, expected answers, and student responses. Implement retry logic for LLM API calls, response validation, and score normalization to ensure 0.0-1.0 range. Add support for different question types (multiple choice, short answer, essay).",
+            "status": "done",
+            "testStrategy": "Test with various answer qualities from completely wrong to perfect. Verify score consistency across multiple evaluations of the same answer."
+          },
+          {
+            "id": 5,
+            "title": "Implement Progress Tracking Database Updates",
+            "description": "Create database operations to update learning.progress table with evaluation results using UPSERT pattern",
+            "dependencies": [
+              "11.4"
+            ],
+            "details": "Implement the INSERT ON CONFLICT UPDATE query for learning.progress table. Ensure proper transaction handling, timestamp updates, and concurrent access patterns. Add database triggers for audit trail if needed.",
+            "status": "done",
+            "testStrategy": "Test UPSERT operations with new and existing progress records. Verify concurrent updates don't cause conflicts or data loss."
+          },
+          {
+            "id": 6,
+            "title": "Build Ticket Status Update Logic for Mastered Items",
+            "description": "Implement conditional ticket status updates when students achieve mastery (score >= 0.8)",
+            "dependencies": [
+              "11.5"
+            ],
+            "details": "Create logic to update Trac ticket status to 'closed' with resolution 'fixed' when mastery is achieved. Ensure this respects Trac's workflow rules and triggers appropriate notifications. Add configurable mastery threshold.",
+            "status": "done",
+            "testStrategy": "Test status updates with scores above and below mastery threshold. Verify Trac workflow compatibility and notification triggers."
+          },
+          {
+            "id": 7,
+            "title": "Integrate ElastiCache for Progress Caching",
+            "description": "Implement caching logic using existing ElastiCache Redis cluster for user progress data",
+            "dependencies": [
+              "11.6"
+            ],
+            "details": "Create cache_user_progress method integration with proper TTL settings. Implement cache key generation strategy that includes user_id and ticket_id. Add cache warming and invalidation patterns for consistency.",
+            "status": "done",
+            "testStrategy": "Test cache operations including set, get, and invalidation. Verify cache hit rates and TTL behavior under load."
+          },
+          {
+            "id": 8,
+            "title": "Implement Graph Cache Invalidation Logic",
+            "description": "Build cache invalidation for milestone-based learning graphs when progress updates occur",
+            "dependencies": [
+              "11.7"
+            ],
+            "details": "Create invalidate_graph_cache method that fetches milestone from ticket and clears relevant cached graph data. Implement cascade invalidation for dependent milestones. Add batch invalidation support for performance.",
+            "status": "done",
+            "testStrategy": "Test cache invalidation triggers correct milestone identification. Verify graph data refreshes after invalidation."
+          },
+          {
+            "id": 9,
+            "title": "Create Comprehensive Error Handling and Logging",
+            "description": "Implement robust error handling for all service operations with detailed logging and monitoring hooks",
+            "dependencies": [
+              "11.8"
+            ],
+            "details": "Add try-catch blocks for database operations, LLM API calls, and cache operations. Implement structured logging with correlation IDs. Create custom exceptions for different failure scenarios. Add metrics collection for monitoring.",
+            "status": "done",
+            "testStrategy": "Test error scenarios including database failures, LLM timeouts, and cache unavailability. Verify appropriate error messages and logging output."
+          },
+          {
+            "id": 10,
+            "title": "Build REST API Endpoint and Integration Tests",
+            "description": "Create FastAPI endpoint for answer evaluation and comprehensive integration tests",
+            "dependencies": [
+              "11.9"
+            ],
+            "details": "Implement POST /api/evaluate endpoint with proper request/response models. Add authentication middleware integration, request validation, and rate limiting. Create OpenAPI documentation. Build end-to-end integration tests covering the full evaluation flow.",
+            "status": "done",
+            "testStrategy": "Test API endpoint with various payloads, authentication states, and concurrent requests. Verify complete flow from API call to database updates and cache operations."
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "title": "Create GraphViz Knowledge Graph Generator",
+        "description": "Implement service to generate visual knowledge graphs showing concepts, prerequisites, and progress, connecting to existing RDS.",
+        "details": "# plugins/learning_graph.py\nimport subprocess\nimport hashlib\nimport os\nfrom genshi.builder import tag\n\nclass KnowledgeGraphGenerator:\n    def __init__(self, env):\n        self.env = env\n        self.graph_dir = os.path.join(env.path, 'htdocs', 'graphs')\n        os.makedirs(self.graph_dir, exist_ok=True)\n    \n    def generate_graph(self, milestone, user_id):\n        # Generate cache key\n        cache_key = hashlib.md5(f'{milestone}:{user_id}'.encode()).hexdigest()\n        png_path = os.path.join(self.graph_dir, f'{cache_key}.png')\n        map_path = os.path.join(self.graph_dir, f'{cache_key}.map')\n        \n        # Check cache\n        if os.path.exists(png_path) and os.path.exists(map_path):\n            return self._read_cached_graph(png_path, map_path)\n        \n        # Query data from existing RDS\n        concepts = self._get_concepts(milestone, user_id)\n        prerequisites = self._get_prerequisites([c['id'] for c in concepts])\n        \n        # Build DOT file\n        dot_content = self._build_dot(concepts, prerequisites)\n        \n        # Generate with GraphViz\n        dot_file = f'/tmp/{cache_key}.dot'\n        with open(dot_file, 'w') as f:\n            f.write(dot_content)\n        \n        # Run GraphViz\n        subprocess.run([\n            'dot', '-Tpng', dot_file, '-o', png_path,\n            '-Tcmapx', '-o', map_path\n        ], check=True)\n        \n        return self._read_cached_graph(png_path, map_path)\n    \n    def _build_dot(self, concepts, prerequisites):\n        dot = ['digraph LearningPath {',\n               '  rankdir=TB;',\n               '  node [shape=box, style=filled];']\n        \n        # Add nodes with colors based on status\n        for concept in concepts:\n            color = self._get_node_color(concept['status'])\n            label = concept['summary'].replace('\"', '\\\\\"')\n            dot.append(f'  \"{concept[\"id\"]}\" [label=\"{label}\", '\n                      f'fillcolor=\"{color}\", '\n                      f'URL=\"/ticket/{concept[\"id\"]}\"];')\n        \n        # Add edges for prerequisites\n        for prereq in prerequisites:\n            dot.append(f'  \"{prereq[\"prerequisite_id\"]}\" -> '\n                      f'\"{prereq[\"concept_id\"]}\";')\n        \n        dot.append('}')\n        return '\\n'.join(dot)\n    \n    def _get_node_color(self, status):\n        if status == 'mastered':\n            return '#90EE90'  # Light green\n        elif status == 'studying':\n            return '#FFB84D'  # Orange\n        else:\n            return '#D3D3D3'  # Gray\n    \n    def _get_concepts(self, milestone, user_id):\n        db = self.env.get_db_cnx()\n        cursor = db.cursor()\n        \n        cursor.execute(\"\"\"\n            SELECT t.id, t.summary, \n                   COALESCE(p.status, 'not_started') as status,\n                   p.answer_score\n            FROM ticket t\n            LEFT JOIN learning.progress p \n                ON t.id = p.ticket_id AND p.cognito_user_id = %s\n            WHERE t.type = 'learning_concept' \n                AND t.milestone = %s\n            ORDER BY t.id\n        \"\"\", (user_id, milestone))\n        \n        return [{'id': row[0], 'summary': row[1], \n                 'status': row[2], 'score': row[3]} \n                for row in cursor]",
+        "testStrategy": "Test graph generation with various progress states using existing RDS data, verify clickable nodes work, and test caching behavior.",
+        "priority": "medium",
+        "dependencies": [
+          2,
+          11
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up GraphViz environment and dependencies",
+            "description": "Install GraphViz binary, configure Python subprocess access, and verify DOT command availability in the Docker container environment",
+            "dependencies": [],
+            "details": "Install graphviz package via apt-get in Dockerfile, add python-graphviz bindings to requirements.txt, create test script to verify 'dot' command is accessible via subprocess.run(). Ensure proper permissions for graph output directory at /htdocs/graphs.",
+            "status": "done",
+            "testStrategy": "Write unit test that executes 'dot -V' command and verifies GraphViz version output. Test directory creation permissions and verify subprocess can write to output directories."
+          },
+          {
+            "id": 2,
+            "title": "Implement database query methods for concepts and prerequisites",
+            "description": "Create methods to fetch learning concepts and prerequisite relationships from existing RDS PostgreSQL tables using Trac's database connection",
+            "dependencies": [
+              "12.1"
+            ],
+            "details": "Implement _get_concepts() method to query ticket table for learning_concept type tickets filtered by milestone and join with learning.progress table for user-specific status. Implement _get_prerequisites() to fetch prerequisite relationships from learning.prerequisites table. Handle database connection pooling properly.",
+            "status": "done",
+            "testStrategy": "Mock database cursor and test query construction with various parameter combinations. Verify SQL injection protection and proper handling of NULL values in LEFT JOINs."
+          },
+          {
+            "id": 3,
+            "title": "Build DOT file generation logic with node styling",
+            "description": "Implement _build_dot() method to create GraphViz DOT syntax with colored nodes based on learning progress status and proper edge relationships",
+            "dependencies": [
+              "12.2"
+            ],
+            "details": "Generate DOT syntax with rankdir=TB for top-bottom layout. Color nodes based on status: mastered (light green #90EE90), studying (orange #FFB84D), not_started (gray #D3D3D3). Add clickable URLs to nodes pointing to /ticket/{id}. Escape special characters in labels. Create directed edges for prerequisite relationships.",
+            "status": "done",
+            "testStrategy": "Test DOT generation with various graph structures including circular dependencies, isolated nodes, and complex prerequisite chains. Verify proper escaping of quotes and special characters in node labels."
+          },
+          {
+            "id": 4,
+            "title": "Implement caching mechanism with hash-based keys",
+            "description": "Create cache key generation using MD5 hashing of milestone and user_id, implement cache checking and storage logic for generated PNG and map files",
+            "dependencies": [
+              "12.3"
+            ],
+            "details": "Generate cache keys using hashlib.md5() with format '{milestone}:{user_id}'. Check for existing PNG and MAP files before regeneration. Implement _read_cached_graph() to retrieve cached files. Handle race conditions and ensure atomic file writes. Set appropriate file permissions for web server access.",
+            "status": "done",
+            "testStrategy": "Test cache hit/miss scenarios, verify MD5 collision handling, test concurrent access patterns, and ensure proper cleanup of temporary files."
+          },
+          {
+            "id": 5,
+            "title": "Create GraphViz subprocess execution with error handling",
+            "description": "Implement secure subprocess calls to GraphViz dot command for PNG and clickable map generation with proper error handling and timeout management",
+            "dependencies": [
+              "12.4"
+            ],
+            "details": "Use subprocess.run() with check=True for error detection. Generate both PNG (-Tpng) and clickable image map (-Tcmapx) outputs. Implement timeout handling to prevent hanging processes. Capture and log stderr for debugging. Clean up temporary DOT files after generation. Handle file system permissions and disk space issues.",
+            "status": "done",
+            "testStrategy": "Test with malformed DOT files, large graphs that may timeout, insufficient disk space scenarios, and verify proper cleanup of temporary files on both success and failure."
+          },
+          {
+            "id": 6,
+            "title": "Integrate with Trac's plugin system and environment",
+            "description": "Register KnowledgeGraphGenerator as a Trac component, integrate with Trac's environment system, and ensure proper initialization during plugin loading",
+            "dependencies": [
+              "12.5"
+            ],
+            "details": "Implement IRequestHandler interface for graph generation endpoints. Register plugin in setup.py entry points. Access Trac environment configuration for paths and database connections. Integrate with Trac's permission system to verify user access. Handle plugin reload and cleanup scenarios.",
+            "status": "done",
+            "testStrategy": "Test plugin registration and loading in Trac environment, verify proper cleanup on plugin reload, test permission checks for different user roles."
+          },
+          {
+            "id": 7,
+            "title": "Create web interface for graph display and interaction",
+            "description": "Implement web endpoints and templates to display generated graphs with clickable image maps in Trac's UI, including proper styling and responsive design",
+            "dependencies": [
+              "12.6"
+            ],
+            "details": "Create request handler for /learning/graph/{milestone} endpoint. Generate HTML with image and associated clickable map. Implement JavaScript for enhanced interactivity (hover effects, zoom). Add CSS styling consistent with Trac's theme. Handle responsive design for different screen sizes. Include loading indicators for graph generation.",
+            "status": "done",
+            "testStrategy": "Test graph display across different browsers, verify clickable areas work correctly, test responsive behavior on mobile devices, and ensure accessibility compliance."
+          },
+          {
+            "id": 8,
+            "title": "Add progress tracking and status color legend",
+            "description": "Implement visual legend showing color meanings, integrate real-time progress updates, and add statistics display for learning path completion",
+            "dependencies": [
+              "12.7"
+            ],
+            "details": "Create color legend component showing: mastered (green), studying (orange), not started (gray). Add progress statistics (X/Y concepts mastered). Implement AJAX updates for status changes without full page reload. Add tooltips showing concept details on hover. Display answer scores and last activity timestamps.",
+            "status": "done",
+            "testStrategy": "Test legend rendering, verify color consistency with graph nodes, test AJAX updates don't cause flickering, and ensure statistics accurately reflect database state."
+          },
+          {
+            "id": 9,
+            "title": "Implement graph optimization for large learning paths",
+            "description": "Add performance optimizations for rendering large graphs including pagination, clustering, and progressive loading techniques",
+            "dependencies": [
+              "12.8"
+            ],
+            "details": "Implement node clustering for paths with >50 concepts. Add graph layout optimization using GraphViz's neato or sfdp engines for large graphs. Create thumbnail previews for quick loading. Implement lazy loading of graph sections. Add server-side filtering to show only relevant portions of large paths. Cache different zoom levels.",
+            "status": "done",
+            "testStrategy": "Performance test with learning paths containing 100+ concepts, measure rendering times, test memory usage with concurrent users, verify clustering maintains prerequisite visibility."
+          },
+          {
+            "id": 10,
+            "title": "Add export and sharing capabilities for knowledge graphs",
+            "description": "Implement features to export graphs as PDF/SVG, create shareable links, and integrate with learning analytics dashboard",
+            "dependencies": [
+              "12.9"
+            ],
+            "details": "Add export buttons for PDF, SVG, and PNG formats using GraphViz output options. Generate shareable URLs with embedded authentication tokens (time-limited). Create embeddable widget version for inclusion in reports. Add print-friendly stylesheet. Integrate with analytics to show graph evolution over time. Implement graph comparison view for multiple users.",
+            "status": "done",
+            "testStrategy": "Test export formats maintain quality and clickable areas where applicable, verify shareable links expire correctly, test embedding in various contexts, ensure print output is readable."
+          }
+        ]
+      },
+      {
+        "id": 13,
+        "title": "Update API Gateway Routes and Lambda Functions",
+        "description": "Update existing API Gateway configuration and create Lambda functions for LLM integration, building on existing infrastructure in /learntrac-infrastructure.",
+        "details": "# Update existing terraform files in /learntrac-infrastructure/\n# Update api_gateway.tf to add new routes\nresource \"aws_api_gateway_resource\" \"learning_paths\" {\n  rest_api_id = aws_api_gateway_rest_api.traclearn_api.id\n  parent_id = aws_api_gateway_rest_api.traclearn_api.root_resource_id\n  path_part = \"learning-paths\"\n}\n\nresource \"aws_api_gateway_method\" \"generate_path\" {\n  rest_api_id = aws_api_gateway_rest_api.traclearn_api.id\n  resource_id = aws_api_gateway_resource.learning_paths.id\n  http_method = \"POST\"\n  authorization = \"COGNITO_USER_POOLS\"\n  authorizer_id = aws_api_gateway_authorizer.cognito.id\n}\n\n# Lambda for LLM calls\nresource \"aws_lambda_function\" \"llm_handler\" {\n  filename = \"llm_handler.zip\"\n  function_name = \"traclearn-llm-handler\"\n  role = aws_iam_role.lambda_role.arn\n  handler = \"index.handler\"\n  runtime = \"python3.11\"\n  timeout = 30\n  \n  environment {\n    variables = {\n      OPENAI_API_KEY = var.openai_api_key\n    }\n  }\n}\n\n# Lambda function code\n# index.py\nimport json\nimport openai\nimport os\n\ndef handler(event, context):\n    # Extract user context from authorizer\n    user_id = event['requestContext']['authorizer']['claims']['sub']\n    \n    # Parse request\n    body = json.loads(event['body'])\n    \n    # Rate limit check\n    if not check_rate_limit(user_id):\n        return {\n            'statusCode': 429,\n            'body': json.dumps({'error': 'Rate limit exceeded'})\n        }\n    \n    # Call OpenAI\n    openai.api_key = os.environ['OPENAI_API_KEY']\n    \n    try:\n        response = openai.ChatCompletion.create(\n            model=body.get('model', 'gpt-4'),\n            messages=body['messages'],\n            temperature=body.get('temperature', 0.7)\n        )\n        \n        return {\n            'statusCode': 200,\n            'body': json.dumps(response.choices[0].message)\n        }\n    except Exception as e:\n        return {\n            'statusCode': 500,\n            'body': json.dumps({'error': str(e)})\n        }",
+        "testStrategy": "Test API Gateway routes with valid/invalid tokens using existing Cognito setup, verify Lambda functions execute correctly, and test rate limiting.",
+        "priority": "high",
+        "dependencies": [
+          1,
+          4
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Review and Update API Gateway Terraform Configuration",
+            "description": "Analyze existing API Gateway setup in /learntrac-infrastructure/api_gateway.tf and add new routes for learning path generation",
+            "dependencies": [],
+            "details": "Review the current API Gateway REST API configuration, ensure Cognito authorizer is properly configured, and add the new /learning-paths resource with POST method. Verify integration with existing aws_api_gateway_rest_api.traclearn_api and aws_api_gateway_authorizer.cognito resources.",
+            "status": "done",
+            "testStrategy": "Deploy changes to test environment and verify new routes appear in AWS Console. Test that existing routes remain functional."
+          },
+          {
+            "id": 2,
+            "title": "Create Lambda Function Terraform Resources",
+            "description": "Define AWS Lambda function resources in Terraform for LLM handler with proper IAM roles and permissions",
+            "dependencies": [
+              "13.1"
+            ],
+            "details": "Create aws_lambda_function resource for traclearn-llm-handler with Python 3.11 runtime. Configure environment variables for OpenAI API key. Define IAM role with necessary permissions for Lambda execution, API Gateway integration, and VPC access to communicate with RDS and ElastiCache.",
+            "status": "done",
+            "testStrategy": "Verify Lambda function is created with correct runtime, environment variables are set, and IAM role has proper permissions."
+          },
+          {
+            "id": 3,
+            "title": "Implement Lambda Handler for OpenAI Integration",
+            "description": "Write Python Lambda function code to handle LLM requests with proper error handling and response formatting",
+            "dependencies": [
+              "13.2"
+            ],
+            "details": "Create index.py with handler function that extracts user context from Cognito authorizer claims, parses request body for model selection and messages, implements OpenAI ChatCompletion API calls, and handles errors gracefully. Include proper JSON response formatting for API Gateway.",
+            "status": "done",
+            "testStrategy": "Unit test handler function with mock event objects. Test OpenAI API integration with sample requests."
+          },
+          {
+            "id": 4,
+            "title": "Implement Rate Limiting Logic in Lambda",
+            "description": "Add rate limiting functionality using ElastiCache Redis to prevent API abuse",
+            "dependencies": [
+              "13.3"
+            ],
+            "details": "Implement check_rate_limit function that connects to existing ElastiCache Redis cluster, tracks API calls per user using Cognito sub as key, implements sliding window rate limiting (e.g., 100 requests per hour), and returns appropriate 429 status when limit exceeded.",
+            "status": "done",
+            "testStrategy": "Test rate limiting with rapid successive calls. Verify Redis keys are created and expire correctly."
+          },
+          {
+            "id": 5,
+            "title": "Configure API Gateway Lambda Integration",
+            "description": "Set up API Gateway integration to connect routes with Lambda function",
+            "dependencies": [
+              "13.2",
+              "13.4"
+            ],
+            "details": "Create aws_api_gateway_integration resource to connect POST method to Lambda function. Configure request/response transformations, enable CORS if needed, and set up proper error response mappings. Ensure Cognito authorizer context is passed to Lambda.",
+            "status": "done",
+            "testStrategy": "Test end-to-end API calls through Gateway to Lambda. Verify authorizer context is available in Lambda."
+          },
+          {
+            "id": 6,
+            "title": "Create Lambda Deployment Package",
+            "description": "Build and package Lambda function with dependencies for deployment",
+            "dependencies": [
+              "13.3",
+              "13.4"
+            ],
+            "details": "Create requirements.txt with openai, redis, and other dependencies. Build deployment package using Lambda layers or zip file with all dependencies. Ensure package size is within Lambda limits. Configure proper handler path in Terraform.",
+            "status": "done",
+            "testStrategy": "Deploy package to Lambda and verify all imports work. Test function invocation through AWS Console."
+          },
+          {
+            "id": 7,
+            "title": "Add Environment Variable Management",
+            "description": "Implement secure environment variable handling for API keys and configuration",
+            "dependencies": [
+              "13.2"
+            ],
+            "details": "Update Terraform to use AWS Secrets Manager or Parameter Store for sensitive values like OpenAI API key. Configure Lambda to retrieve secrets at runtime. Add Redis connection string and other configuration as environment variables.",
+            "status": "done",
+            "testStrategy": "Verify secrets are stored securely and Lambda can retrieve them. Test with invalid keys to ensure proper error handling."
+          },
+          {
+            "id": 8,
+            "title": "Implement Request Validation and Sanitization",
+            "description": "Add input validation to Lambda function for security and reliability",
+            "dependencies": [
+              "13.3"
+            ],
+            "details": "Validate request body structure, ensure required fields are present, sanitize user inputs to prevent injection attacks, validate model selection against allowed models, and implement message length limits to control token usage.",
+            "status": "done",
+            "testStrategy": "Test with malformed requests, oversized inputs, and invalid model names. Verify appropriate error responses."
+          },
+          {
+            "id": 9,
+            "title": "Configure API Gateway Deployment and Stages",
+            "description": "Set up API Gateway deployment with proper staging for testing and production",
+            "dependencies": [
+              "13.5"
+            ],
+            "details": "Create aws_api_gateway_deployment resource, configure stage variables for different environments, set up CloudWatch logging for API Gateway, implement throttling at API level, and create custom domain if needed.",
+            "status": "done",
+            "testStrategy": "Deploy to test stage and verify all routes work. Test stage-specific configurations and logging."
+          },
+          {
+            "id": 10,
+            "title": "Add Monitoring and Observability",
+            "description": "Implement comprehensive monitoring for API Gateway and Lambda functions",
+            "dependencies": [
+              "13.9"
+            ],
+            "details": "Configure CloudWatch alarms for Lambda errors and throttling, set up X-Ray tracing for performance monitoring, implement custom metrics for LLM usage and costs, create dashboards for operational visibility, and set up SNS notifications for critical issues.",
+            "status": "done",
+            "testStrategy": "Trigger various scenarios to verify metrics are collected. Test alarm notifications and dashboard accuracy."
+          }
+        ]
+      },
+      {
+        "id": 14,
+        "title": "Create Docker Containers and Deployment Configuration",
+        "description": "Build Docker containers for Trac and Learning Service with proper networking and environment configuration, with Learning Service in /learntrac-api directory.",
+        "details": "# trac/Dockerfile\nFROM python:2.7-slim\n\nRUN apt-get update && apt-get install -y \\\n    graphviz \\\n    postgresql-client \\\n    && rm -rf /var/lib/apt/lists/*\n\nWORKDIR /app\n\nCOPY requirements.txt .\nRUN pip install -r requirements.txt\n\nCOPY plugins/ /app/plugins/\nCOPY templates/ /app/templates/\nCOPY static/ /app/static/\n\nENV TRAC_ENV=/var/trac/myproject\n\nCMD [\"tracd\", \"--port\", \"8080\", \"/var/trac/myproject\"]\n\n# learntrac-api/Dockerfile\nFROM python:3.11-slim\n\nWORKDIR /app\n\nCOPY requirements.txt .\nRUN pip install -r requirements.txt\n\nCOPY app/ /app/\n\nCMD [\"uvicorn\", \"app.main:app\", \"--host\", \"0.0.0.0\", \"--port\", \"8000\"]\n\n# docker-compose.yml\nversion: '3.8'\n\nservices:\n  trac:\n    build: ./trac\n    environment:\n      - DATABASE_URL=postgresql://trac:password@existing_rds_endpoint/traclearn\n      - API_GATEWAY_URL=https://existing-api-gateway-url.com\n      - COGNITO_REGION=us-east-1\n      - COGNITO_USER_POOL_ID=${EXISTING_COGNITO_USER_POOL_ID}\n      - COGNITO_CLIENT_ID=${EXISTING_COGNITO_CLIENT_ID}\n    ports:\n      - \"8080:8080\"\n    depends_on:\n      - learning-service\n  \n  learning-service:\n    build: ./learntrac-api\n    environment:\n      - DATABASE_URL=postgresql://trac:password@existing_rds_endpoint/traclearn\n      - NEO4J_URI=${NEO4J_URI}\n      - NEO4J_USER=${NEO4J_USER}\n      - NEO4J_PASSWORD=${NEO4J_PASSWORD}\n      - ELASTICACHE_ENDPOINT=${EXISTING_ELASTICACHE_ENDPOINT}\n      - API_GATEWAY_URL=https://existing-api-gateway-url.com\n      - COGNITO_REGION=us-east-1\n    ports:\n      - \"8000:8000\"",
+        "testStrategy": "Test container builds successfully, verify inter-container communication works, and ensure environment variables properly connect to existing AWS infrastructure.",
+        "priority": "medium",
+        "dependencies": [
+          3,
+          4
+        ],
+        "status": "in-progress",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up Docker build environment and directory structure",
+            "description": "Create the necessary directory structure for Docker containers including trac/ and learntrac-api/ directories with their respective Dockerfile locations",
+            "dependencies": [],
+            "details": "Create project structure:\n- /trac/Dockerfile\n- /trac/requirements.txt\n- /learntrac-api/Dockerfile\n- /learntrac-api/requirements.txt\n- /docker-compose.yml\n- /.env.example for environment variables\n- /.dockerignore files\nEnsure proper file permissions and Git tracking",
+            "status": "pending",
+            "testStrategy": "Verify directory structure exists, all required files are created, and .dockerignore properly excludes sensitive files"
+          },
+          {
+            "id": 2,
+            "title": "Create Trac container Dockerfile with Python 2.7 environment",
+            "description": "Build the Dockerfile for Trac service using Python 2.7-slim base image with all required system dependencies and proper file copying",
+            "dependencies": [
+              "14.1"
+            ],
+            "details": "FROM python:2.7-slim\n\nRUN apt-get update && apt-get install -y \\\n    graphviz \\\n    postgresql-client \\\n    libpq-dev \\\n    gcc \\\n    && rm -rf /var/lib/apt/lists/*\n\nWORKDIR /app\n\nCOPY requirements.txt .\nRUN pip install -r requirements.txt\n\nCOPY plugins/ /app/plugins/\nCOPY templates/ /app/templates/\nCOPY static/ /app/static/\nCOPY trac.ini /app/\n\nENV TRAC_ENV=/var/trac/myproject\nENV PYTHONPATH=/app/plugins:$PYTHONPATH\n\nRUN mkdir -p /var/trac/myproject\n\nCMD [\"tracd\", \"--port\", \"8080\", \"/var/trac/myproject\"]",
+            "status": "pending",
+            "testStrategy": "Build the Docker image locally and verify it builds without errors, check that all required packages are installed"
+          },
+          {
+            "id": 3,
+            "title": "Create Learning Service container Dockerfile with Python 3.11",
+            "description": "Build the Dockerfile for Learning Service API using Python 3.11-slim with FastAPI/Uvicorn setup in the /learntrac-api directory",
+            "dependencies": [
+              "14.1"
+            ],
+            "details": "FROM python:3.11-slim\n\nRUN apt-get update && apt-get install -y \\\n    postgresql-client \\\n    libpq-dev \\\n    gcc \\\n    && rm -rf /var/lib/apt/lists/*\n\nWORKDIR /app\n\nCOPY requirements.txt .\nRUN pip install --no-cache-dir -r requirements.txt\n\nCOPY app/ /app/app/\n\nENV PYTHONPATH=/app\n\nCMD [\"uvicorn\", \"app.main:app\", \"--host\", \"0.0.0.0\", \"--port\", \"8000\", \"--reload\"]",
+            "status": "pending",
+            "testStrategy": "Build the Docker image and verify FastAPI starts correctly, check health endpoint responds"
+          },
+          {
+            "id": 4,
+            "title": "Configure docker-compose.yml with service definitions and networking",
+            "description": "Create docker-compose configuration defining both services with proper networking, volume mounts, and environment variable setup",
+            "dependencies": [
+              "14.2",
+              "14.3"
+            ],
+            "details": "version: '3.8'\n\nservices:\n  trac:\n    build: ./trac\n    container_name: trac-service\n    environment:\n      - DATABASE_URL=postgresql://trac:password@${RDS_ENDPOINT}/traclearn\n      - API_GATEWAY_URL=${API_GATEWAY_URL}\n      - COGNITO_REGION=${COGNITO_REGION}\n      - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID}\n      - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}\n      - LEARNING_SERVICE_URL=http://learning-service:8000\n    ports:\n      - \"8080:8080\"\n    volumes:\n      - trac-data:/var/trac/myproject\n    networks:\n      - traclearn-network\n    depends_on:\n      - learning-service\n    restart: unless-stopped\n  \n  learning-service:\n    build: ./learntrac-api\n    container_name: learning-service\n    environment:\n      - DATABASE_URL=postgresql://trac:password@${RDS_ENDPOINT}/traclearn\n      - NEO4J_URI=${NEO4J_URI}\n      - NEO4J_USER=${NEO4J_USER}\n      - NEO4J_PASSWORD=${NEO4J_PASSWORD}\n      - ELASTICACHE_ENDPOINT=${ELASTICACHE_ENDPOINT}\n      - API_GATEWAY_URL=${API_GATEWAY_URL}\n      - COGNITO_REGION=${COGNITO_REGION}\n    ports:\n      - \"8000:8000\"\n    networks:\n      - traclearn-network\n    restart: unless-stopped\n\nnetworks:\n  traclearn-network:\n    driver: bridge\n\nvolumes:\n  trac-data:",
+            "status": "pending",
+            "testStrategy": "Run docker-compose config to validate YAML syntax, verify service dependencies are correct"
+          },
+          {
+            "id": 5,
+            "title": "Create environment variable configuration and .env template",
+            "description": "Set up .env.example file with all required AWS service endpoints and credentials for both containers",
+            "dependencies": [
+              "14.4"
+            ],
+            "details": "# AWS RDS Configuration\nRDS_ENDPOINT=your-rds-endpoint.amazonaws.com:5432\nDATABASE_NAME=traclearn\nDATABASE_USER=trac\nDATABASE_PASSWORD=your-password\n\n# AWS Cognito Configuration\nCOGNITO_REGION=us-east-1\nCOGNITO_USER_POOL_ID=us-east-1_xxxxxxxxx\nCOGNITO_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxx\nCOGNITO_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxx\n\n# AWS API Gateway\nAPI_GATEWAY_URL=https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/prod\n\n# Neo4j Configuration\nNEO4J_URI=bolt://neo4j-endpoint:7687\nNEO4J_USER=neo4j\nNEO4J_PASSWORD=your-neo4j-password\n\n# ElastiCache Configuration\nELASTICACHE_ENDPOINT=your-elasticache-endpoint.cache.amazonaws.com\n\n# Application Configuration\nTRAC_ADMIN_USER=admin\nTRAC_ADMIN_PASSWORD=admin-password",
+            "status": "pending",
+            "testStrategy": "Verify all environment variables are documented, check that docker-compose can interpolate variables correctly"
+          },
+          {
+            "id": 6,
+            "title": "Implement container health checks and startup scripts",
+            "description": "Add health check configurations to both containers and create initialization scripts for proper service startup",
+            "dependencies": [
+              "14.4"
+            ],
+            "details": "Add to docker-compose.yml:\n\ntrac:\n  healthcheck:\n    test: [\"CMD\", \"curl\", \"-f\", \"http://localhost:8080/login\"]\n    interval: 30s\n    timeout: 10s\n    retries: 3\n    start_period: 40s\n\nlearning-service:\n  healthcheck:\n    test: [\"CMD\", \"curl\", \"-f\", \"http://localhost:8000/health\"]\n    interval: 30s\n    timeout: 10s\n    retries: 3\n    start_period: 30s\n\nCreate /trac/docker-entrypoint.sh:\n#!/bin/bash\nset -e\n\n# Wait for database\nuntil PGPASSWORD=$DATABASE_PASSWORD psql -h \"$RDS_ENDPOINT\" -U \"$DATABASE_USER\" -c '\\q'; do\n  echo \"Postgres is unavailable - sleeping\"\n  sleep 1\ndone\n\n# Initialize Trac environment if needed\nif [ ! -f \"$TRAC_ENV/VERSION\" ]; then\n  trac-admin \"$TRAC_ENV\" initenv \"TracLearn\" \"postgres://...\"\nfi\n\nexec \"$@\"",
+            "status": "pending",
+            "testStrategy": "Test health checks respond correctly, verify containers wait for dependencies before starting"
+          },
+          {
+            "id": 7,
+            "title": "Configure inter-container networking and service discovery",
+            "description": "Set up proper Docker networking to allow Trac to communicate with Learning Service and configure service discovery",
+            "dependencies": [
+              "14.4",
+              "14.6"
+            ],
+            "details": "Configure in docker-compose.yml:\n- Use container names for internal communication\n- Set up aliases for services\n- Configure DNS resolution\n\nAdd to Trac configuration:\nLEARNING_SERVICE_URL=http://learning-service:8000\n\nAdd to Learning Service:\nTRAC_SERVICE_URL=http://trac:8080\n\nImplement connection retry logic in both services:\n# In Trac plugin\nimport requests\nfrom requests.adapters import HTTPAdapter\nfrom requests.packages.urllib3.util.retry import Retry\n\nsession = requests.Session()\nretry = Retry(total=3, backoff_factor=0.3)\nadapter = HTTPAdapter(max_retries=retry)\nsession.mount('http://', adapter)",
+            "status": "pending",
+            "testStrategy": "Test container-to-container API calls work, verify DNS resolution between services"
+          },
+          {
+            "id": 8,
+            "title": "Create development and production Docker configurations",
+            "description": "Set up separate configurations for development with hot reloading and production with optimizations",
+            "dependencies": [
+              "14.4",
+              "14.5"
+            ],
+            "details": "Create docker-compose.dev.yml:\n- Mount source code as volumes for hot reloading\n- Enable debug modes\n- Add development tools\n\nCreate docker-compose.prod.yml:\n- Multi-stage builds for smaller images\n- No source code mounting\n- Production-grade logging\n- Resource limits\n\nAdd Makefile:\ndev:\n  docker-compose -f docker-compose.yml -f docker-compose.dev.yml up\n\nprod:\n  docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d\n\nbuild:\n  docker-compose build --no-cache\n\nlogs:\n  docker-compose logs -f",
+            "status": "pending",
+            "testStrategy": "Test both dev and prod configurations start correctly, verify hot reloading works in dev mode"
+          },
+          {
+            "id": 9,
+            "title": "Implement logging and monitoring configuration",
+            "description": "Configure centralized logging for both containers with proper log formatting and rotation",
+            "dependencies": [
+              "14.4",
+              "14.7"
+            ],
+            "details": "Configure logging in docker-compose.yml:\nlogging:\n  driver: json-file\n  options:\n    max-size: \"10m\"\n    max-file: \"3\"\n\nAdd to Trac Dockerfile:\nENV TRAC_LOG_TYPE=file\nENV TRAC_LOG_LEVEL=INFO\nENV TRAC_LOG_FILE=/var/log/trac/trac.log\n\nAdd to Learning Service:\nimport logging\nlogging.basicConfig(\n    level=logging.INFO,\n    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'\n)\n\nCreate log volumes:\nvolumes:\n  - ./logs/trac:/var/log/trac\n  - ./logs/learning-service:/var/log/learning-service",
+            "status": "pending",
+            "testStrategy": "Verify logs are written to correct locations, test log rotation works, check log formats are consistent"
+          },
+          {
+            "id": 10,
+            "title": "Create deployment scripts and documentation",
+            "description": "Write deployment scripts for AWS ECS/Fargate and comprehensive documentation for container deployment",
+            "dependencies": [
+              "14.8",
+              "14.9"
+            ],
+            "details": "Create deploy/ecs-task-definition.json:\n- Define task definitions for both services\n- Configure CPU/memory allocations\n- Set up CloudWatch logging\n\nCreate deploy/deploy.sh:\n#!/bin/bash\n# Build and push to ECR\naws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY\ndocker build -t trac:latest ./trac\ndocker tag trac:latest $ECR_REGISTRY/trac:latest\ndocker push $ECR_REGISTRY/trac:latest\n\nCreate README.md:\n# TracLearn Docker Deployment\n## Local Development\n1. Copy .env.example to .env\n2. Run `make dev`\n\n## Production Deployment\n1. Configure AWS credentials\n2. Run `./deploy/deploy.sh`\n\n## Environment Variables\n[Document all variables]\n\n## Troubleshooting\n[Common issues and solutions]",
+            "status": "pending",
+            "testStrategy": "Test deployment scripts in staging environment, verify documentation is complete and accurate"
+          }
+        ]
+      },
+      {
+        "id": 15,
+        "title": "Implement Progress Tracking and Roadmap Integration",
+        "description": "Create views and integrations to show learning progress in Trac's roadmap and milestone views, connecting to existing RDS and using Learning Service API in /learntrac-api.",
+        "details": "# plugins/learning_roadmap.py\nfrom trac.core import Component, implements\nfrom trac.web.api import IRequestHandler\nfrom trac.ticket.roadmap import RoadmapModule\nfrom genshi.builder import tag\n\nclass LearningRoadmapEnhancer(Component):\n    implements(IRequestHandler)\n    \n    def match_request(self, req):\n        return req.path_info.startswith('/learning/roadmap')\n    \n    def process_request(self, req):\n        user_id = req.session.get('cognito_sub')\n        if not user_id:\n            req.redirect('/login')\n        \n        # Get learning paths from existing RDS\n        paths = self._get_user_paths(user_id)\n        \n        # Calculate progress for each milestone using existing data\n        milestone_progress = {}\n        for milestone in self._get_learning_milestones():\n            stats = self._calculate_milestone_progress(milestone, user_id)\n            milestone_progress[milestone] = stats\n        \n        # Prepare data for template\n        data = {\n            'paths': paths,\n            'milestones': milestone_progress,\n            'overall_progress': self._calculate_overall_progress(user_id)\n        }\n        \n        return 'learning_roadmap.html', data, None\n    \n    def _calculate_milestone_progress(self, milestone, user_id):\n        db = self.env.get_db_cnx()\n        cursor = db.cursor()\n        \n        cursor.execute(\"\"\"\n            SELECT \n                COUNT(*) as total,\n                COUNT(CASE WHEN p.status = 'mastered' THEN 1 END) as mastered,\n                COUNT(CASE WHEN p.status = 'studying' THEN 1 END) as studying,\n                AVG(p.answer_score) as avg_score\n            FROM ticket t\n            LEFT JOIN learning.progress p \n                ON t.id = p.ticket_id AND p.cognito_user_id = %s\n            WHERE t.type = 'learning_concept' AND t.milestone = %s\n        \"\"\", (user_id, milestone))\n        \n        row = cursor.fetchone()\n        total, mastered, studying, avg_score = row\n        \n        return {\n            'total': total,\n            'mastered': mastered,\n            'studying': studying,\n            'not_started': total - mastered - studying,\n            'completion_pct': (mastered / total * 100) if total > 0 else 0,\n            'avg_score': avg_score or 0,\n            'graph_url': f'/graphs/{milestone}/{user_id}'\n        }\n    \n    def _render_progress_bar(self, stats):\n        return tag.div(\n            tag.div(\n                style=f\"width: {stats['completion_pct']}%\",\n                class_='progress-bar progress-bar-success'\n            ),\n            tag.div(\n                style=f\"width: {stats['studying'] / stats['total'] * 100}%\",\n                class_='progress-bar progress-bar-warning'\n            ),\n            class_='progress',\n            title=f\"{stats['mastered']} mastered, {stats['studying']} studying, \"\n                  f\"{stats['not_started']} not started\"\n        )\n\n# SQL View for reporting using existing learning schema\nCREATE VIEW learning.progress_summary AS\nSELECT \n    m.name as milestone,\n    u.cognito_user_id as user_id,\n    COUNT(DISTINCT t.id) as total_concepts,\n    COUNT(DISTINCT CASE WHEN p.status = 'mastered' THEN t.id END) as mastered,\n    COUNT(DISTINCT CASE WHEN p.status = 'studying' THEN t.id END) as studying,\n    ROUND(AVG(p.answer_score)::numeric, 2) as avg_score,\n    SUM(p.time_spent_minutes) as total_time_minutes,\n    MAX(p.last_accessed) as last_activity\nFROM milestone m\nJOIN ticket t ON t.milestone = m.name AND t.type = 'learning_concept'\nCROSS JOIN (SELECT DISTINCT cognito_user_id FROM learning.progress) u\nLEFT JOIN learning.progress p ON t.id = p.ticket_id AND p.cognito_user_id = u.cognito_user_id\nGROUP BY m.name, u.cognito_user_id;",
+        "testStrategy": "Verify progress calculations are accurate using existing RDS data, test roadmap view displays correctly, and ensure performance with large datasets from existing infrastructure.",
+        "priority": "medium",
+        "dependencies": [
+          11,
+          12
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Design Progress Tracking Database Schema Extensions",
+            "description": "Design and implement database schema extensions for progress tracking in the existing RDS, including views for milestone progress aggregation and user learning path summaries.",
+            "dependencies": [],
+            "details": "Create SQL schema for learning.progress_summary view and related indexes. Design efficient queries for calculating milestone completion percentages, average scores, and time spent. Ensure compatibility with existing Trac ticket structure and learning.progress table.",
+            "status": "done",
+            "testStrategy": "Validate schema creation scripts, test view performance with sample data, verify calculated metrics match expected values for various progress scenarios."
+          },
+          {
+            "id": 2,
+            "title": "Implement LearningRoadmapEnhancer Component Base",
+            "description": "Create the base LearningRoadmapEnhancer component that implements IRequestHandler, including request matching and basic authentication flow with Cognito integration.",
+            "dependencies": [],
+            "details": "Implement the component class structure, register with Trac's component system, set up request routing for /learning/roadmap paths, and integrate Cognito authentication checks using existing session management.",
+            "status": "done",
+            "testStrategy": "Test component registration in Trac, verify request matching for learning roadmap URLs, test authentication redirects for unauthenticated users."
+          },
+          {
+            "id": 3,
+            "title": "Create Progress Calculation Methods",
+            "description": "Implement methods for calculating milestone progress, including _calculate_milestone_progress and _calculate_overall_progress that query existing RDS data efficiently.",
+            "dependencies": [
+              "15.1"
+            ],
+            "details": "Develop SQL queries to fetch progress data from learning.progress table joined with tickets. Calculate completion percentages, average scores, and categorize learning status (mastered/studying/not started). Implement caching strategy for performance.",
+            "status": "done",
+            "testStrategy": "Unit test progress calculations with mock data, verify SQL query performance, test edge cases like empty milestones or users with no progress."
+          },
+          {
+            "id": 4,
+            "title": "Build Learning Paths Data Retrieval",
+            "description": "Implement _get_user_paths and _get_learning_milestones methods to fetch user-specific learning paths and available milestones from the existing database.",
+            "dependencies": [
+              "15.2"
+            ],
+            "details": "Create efficient queries to retrieve user learning paths with progress status. Fetch milestone data including associated learning concepts. Structure data for template consumption with proper sorting and filtering.",
+            "status": "done",
+            "testStrategy": "Test data retrieval with various user scenarios, verify proper handling of users with no paths, test performance with large datasets."
+          },
+          {
+            "id": 5,
+            "title": "Create Roadmap HTML Template",
+            "description": "Design and implement learning_roadmap.html Genshi template to display progress data with interactive visualizations and navigation elements.",
+            "dependencies": [
+              "15.2"
+            ],
+            "details": "Create responsive HTML template using Trac's Genshi templating system. Include progress bars, milestone cards, and navigation between learning paths. Integrate with Trac's existing CSS framework for consistent styling.",
+            "status": "done",
+            "testStrategy": "Test template rendering with various data scenarios, verify responsive design, test accessibility features and browser compatibility."
+          },
+          {
+            "id": 6,
+            "title": "Implement Progress Bar Visualization Component",
+            "description": "Create _render_progress_bar method and related visualization helpers to generate interactive progress indicators using Genshi's tag builder.",
+            "dependencies": [
+              "15.3"
+            ],
+            "details": "Build dynamic progress bars showing mastered/studying/not-started segments. Add tooltips with detailed statistics. Create color-coded indicators for different progress levels. Support both milestone and overall progress views.",
+            "status": "done",
+            "testStrategy": "Test progress bar rendering with various completion percentages, verify tooltip content accuracy, test visual consistency across browsers."
+          },
+          {
+            "id": 7,
+            "title": "Integrate Learning Service API Calls",
+            "description": "Add integration with Learning Service API in /learntrac-api for fetching real-time progress data and triggering graph generation for milestone progress visualization.",
+            "dependencies": [
+              "15.4"
+            ],
+            "details": "Implement async API calls to Learning Service endpoints for progress data. Handle authentication token passing from Cognito session. Implement retry logic and error handling for API failures. Cache API responses using ElastiCache.",
+            "status": "done",
+            "testStrategy": "Test API integration with mock services, verify proper error handling, test caching behavior and token management."
+          },
+          {
+            "id": 8,
+            "title": "Add Milestone Progress Analytics",
+            "description": "Implement analytics features including time tracking, score trends, and learning velocity calculations integrated with the roadmap view.",
+            "dependencies": [
+              "15.3",
+              "15.7"
+            ],
+            "details": "Calculate learning velocity (concepts mastered per time period), score trends over time, and estimated completion dates. Add comparative analytics showing user progress against cohort averages. Generate analytics data for dashboard widgets.",
+            "status": "done",
+            "testStrategy": "Test analytics calculations with historical data, verify trend calculations accuracy, test performance with large datasets."
+          },
+          {
+            "id": 9,
+            "title": "Create Progress Export and Reporting Features",
+            "description": "Implement data export functionality for progress reports in various formats (CSV, JSON, PDF) and integrate with existing Trac reporting system.",
+            "dependencies": [
+              "15.3",
+              "15.8"
+            ],
+            "details": "Add export endpoints for progress data in multiple formats. Generate PDF reports with charts and summaries. Integrate with Trac's existing report system to allow custom progress queries. Include scheduling for automated progress reports.",
+            "status": "done",
+            "testStrategy": "Test export functionality for all formats, verify data accuracy in exports, test report generation performance and scheduling features."
+          },
+          {
+            "id": 10,
+            "title": "Implement Roadmap Enhancement Plugin Registration",
+            "description": "Complete plugin registration, configuration, and deployment including database migration scripts and integration with existing Trac roadmap module.",
+            "dependencies": [
+              "15.2",
+              "15.5",
+              "15.6",
+              "15.9"
+            ],
+            "details": "Register plugin with Trac's plugin system, add configuration options for customizing progress display. Create database migration scripts for schema changes. Add hooks to enhance existing roadmap views with learning progress indicators. Document plugin configuration and usage.",
+            "status": "done",
+            "testStrategy": "Test plugin installation and configuration process, verify integration with existing roadmap views, test migration scripts on test database, validate all configuration options work as expected."
+          }
+        ]
+      }
+    ],
+    "metadata": {
+      "created": "2025-07-24T23:16:55.495Z",
+      "updated": "2025-07-25T20:16:43.588Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

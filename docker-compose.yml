@@ -1,0 +1,162 @@
+version: '3.8'
+
+services:
+  # Trac service
+  trac:
+    build:
+      context: ./docker/trac
+      dockerfile: Dockerfile
+    container_name: trac-service
+    environment:
+      # Database configuration
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@${RDS_ENDPOINT}/${DB_NAME}
+      - TRAC_DB_URI=postgres://${DB_USER}:${DB_PASSWORD}@${RDS_ENDPOINT}/${DB_NAME}
+      
+      # AWS Configuration
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - API_GATEWAY_URL=${API_GATEWAY_URL}
+      
+      # Cognito configuration
+      - COGNITO_REGION=${COGNITO_REGION:-us-east-1}
+      - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID}
+      - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}
+      - COGNITO_CLIENT_SECRET=${COGNITO_CLIENT_SECRET}
+      
+      # Learning Service configuration
+      - LEARNING_SERVICE_URL=http://learning-service:8001
+      - LEARNING_API_URL=http://learning-service:8001/api/learntrac
+      
+      # Trac configuration
+      - TRAC_PROJECT_NAME=LearnTrac
+      - TRAC_ADMIN_USER=${TRAC_ADMIN_USER:-admin}
+      - TRAC_ADMIN_PASSWORD=${TRAC_ADMIN_PASSWORD:-admin}
+    ports:
+      - "${TRAC_PORT:-8080}:8000"
+    volumes:
+      - trac-data:/var/trac/projects
+      - ./docker/trac/plugins:/app/plugins
+      - ./docker/trac/templates:/app/templates
+      - ./logs/trac:/var/log/trac
+    networks:
+      - learntrac-network
+    depends_on:
+      - learning-service
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/app/scripts/health-check-trac.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    command: /app/scripts/start-trac.sh
+
+  # Learning Service API
+  learning-service:
+    build:
+      context: ./learntrac-api
+      dockerfile: Dockerfile
+    container_name: learning-service
+    environment:
+      # Database configuration
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@${RDS_ENDPOINT}/${DB_NAME}
+      
+      # Neo4j configuration
+      - NEO4J_URI=${NEO4J_URI}
+      - NEO4J_USER=${NEO4J_USER}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD}
+      
+      # Redis/ElastiCache configuration
+      - REDIS_URL=redis://${ELASTICACHE_ENDPOINT}:6379
+      - ELASTICACHE_ENDPOINT=${ELASTICACHE_ENDPOINT}
+      
+      # OpenAI configuration
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4}
+      
+      # AWS Configuration
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - API_GATEWAY_URL=${API_GATEWAY_URL}
+      
+      # Cognito configuration
+      - COGNITO_REGION=${COGNITO_REGION:-us-east-1}
+      - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID}
+      - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}
+      
+      # Application configuration
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    ports:
+      - "${API_PORT:-8001}:8001"
+    volumes:
+      - ./learntrac-api/src:/app/src
+      - ./logs/api:/var/log/api
+    networks:
+      - learntrac-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/app/scripts/health-check-api.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    command: /app/scripts/start-api.sh
+
+  # Neo4j (only for local development)
+  neo4j-dev:
+    image: neo4j:5.12
+    container_name: neo4j-dev
+    profiles:
+      - development
+    environment:
+      - NEO4J_AUTH=${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-password}
+      - NEO4J_dbms_memory_pagecache_size=1G
+      - NEO4J_dbms_memory_heap_max__size=1G
+      - NEO4J_dbms_connector_bolt_enabled=true
+      - NEO4J_dbms_connector_http_enabled=true
+    ports:
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
+    volumes:
+      - neo4j-data:/data
+      - neo4j-logs:/logs
+    networks:
+      - learntrac-network
+    healthcheck:
+      test: ["CMD", "neo4j", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Redis (only for local development)
+  redis-dev:
+    image: redis:7-alpine
+    container_name: redis-dev
+    profiles:
+      - development
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - learntrac-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  learntrac-network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  trac-data:
+  neo4j-data:
+  neo4j-logs:
+  redis-data:

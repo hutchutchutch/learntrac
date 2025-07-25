@@ -5,7 +5,11 @@
     "CLAUDE_FLOW_HOOKS_ENABLED": "true",
     "CLAUDE_FLOW_TELEMETRY_ENABLED": "true",
     "CLAUDE_FLOW_REMOTE_EXECUTION": "true",
-    "CLAUDE_FLOW_GITHUB_INTEGRATION": "true"
+    "CLAUDE_FLOW_GITHUB_INTEGRATION": "true",
+    "CLAUDE_FLOW_AUTO_BRANCH": "true",
+    "CLAUDE_FLOW_AUTO_PR": "true",
+    "CLAUDE_FLOW_BRANCH_PREFIX": "claude-feature/",
+    "CLAUDE_FLOW_REQUIRE_PR_REVIEW": "true"
   },
   "permissions": {
     "allow": [
@@ -20,6 +24,10 @@
       "Bash(git commit *)",
       "Bash(git push)",
       "Bash(git config *)",
+      "Bash(git checkout *)",
+      "Bash(git branch *)",
+      "Bash(git merge *)",
+      "Bash(git pull *)",
       "Bash(gh *)",
       "Bash(node *)",
       "Bash(which *)",

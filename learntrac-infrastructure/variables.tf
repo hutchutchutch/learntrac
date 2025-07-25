@@ -162,3 +162,61 @@ variable "openai_api_key" {
   default     = ""
   sensitive   = true
 }
+
+# OAuth provider variables
+variable "enable_google_oauth" {
+  description = "Enable Google OAuth integration"
+  type        = bool
+  default     = false
+}
+
+variable "google_client_id" {
+  description = "Google OAuth client ID"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "google_client_secret" {
+  description = "Google OAuth client secret"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+# Security Enhancement Variables
+variable "enable_flow_logs" {
+  description = "Enable VPC Flow Logs for network monitoring"
+  type        = bool
+  default     = true
+}
+
+variable "enable_waf" {
+  description = "Enable AWS WAF for ALB protection"
+  type        = bool
+  default     = false
+}
+
+variable "enable_guardduty" {
+  description = "Enable GuardDuty for threat detection"
+  type        = bool
+  default     = false
+}
+
+variable "enable_network_acls" {
+  description = "Enable Network ACLs for subnet-level protection"
+  type        = bool
+  default     = false
+}
+
+variable "enable_security_hub" {
+  description = "Enable Security Hub for compliance monitoring"
+  type        = bool
+  default     = false
+}
+
+variable "enable_aws_config" {
+  description = "Enable AWS Config for resource compliance tracking"
+  type        = bool
+  default     = false
+}

@@ -1,227 +1,187 @@
-# Product Vision Guide - AI-Powered Learning Path Generation for Trac 1.4.4
+Executive Summary
+This product vision guide outlines the MVP for transforming Trac 1.4.4 into a question-based learning management system. By leveraging Neo4j Aura for academic content discovery and LLM-powered question generation, we enable learners to master concepts through active question-answering while using Trac's proven project management infrastructure. The system is deployed on AWS with Cognito authentication, API Gateway for service communication, RDS PostgreSQL for data persistence, and ElastiCache for caching.
+Vision Statement
+Transform Trac into a cloud-native personal learning platform where learners discover academic knowledge through AI-powered vector search, master concepts by answering generated questions, and track their progress through familiar project management visualizations—all secured by AWS Cognito and orchestrated through API Gateway.
+MVP Core Features
+1. Instant Learning Paths via Vector Search
+Transform learning queries into structured paths by searching Neo4j Aura's knowledge base of academic chunks, returning the most relevant content based on semantic similarity.
+2. Concept Mapping with Questions
+Each discovered chunk becomes a learning ticket with an LLM-generated question that tests understanding of the concept.
+3. Progress Tracking through Answer Evaluation
+Track learning progress by evaluating student answers against expected responses, with scores determining mastery status.
+4. Knowledge Dependencies from Chunks
+Map prerequisite relationships between concepts using metadata from Neo4j Aura chunks, ensuring proper learning sequence.
+5. Self-Paced Learning with Answer History
+Learn at individual pace with time tracking, answer attempts history, and personal notes on each concept.
+6. Knowledge Graph Visualization
+Display learning paths as GraphViz-generated images showing concept relationships, prerequisites, and progress through color coding.
+The Learning-as-a-Project Philosophy
+We reimagine Trac's components for question-based learning:
 
-## Executive Summary
+Ticket → Learning Concept with Question
+Milestone → Subject Grouping (from chunk metadata)
+Roadmap → Learning Path Progress
+Dependencies → Prerequisite Concepts (from chunk relationships)
+Status Workflow → Answer-Based Progress (new → studying → mastered)
 
-This product vision guide outlines the transformation of Trac 1.4.4 from a project management system into a dual-purpose platform that also serves as an automated learning path generator. By leveraging Trac's existing project tracking infrastructure, we enable curious learners to generate structured educational roadmaps where learning topics become "projects," concepts become "tickets," and knowledge acquisition follows the same progress tracking methodologies used in software development.
+User Persona
+The Self-Directed Learner
 
-## Vision Statement
+Context: Individual seeking to master academic topics independently
+Need: Structured learning with clear questions to test understanding
+Use Case: Enters "I want to understand machine learning" and receives learning path with questions for each concept
+Authentication: Signs in via AWS Cognito to access personalized learning
 
-To democratize structured learning by transforming Trac into an AI-enhanced platform where anyone can instantly generate personalized learning paths, track their educational progress, and master complex topics using proven project management methodologies.
+MVP Feature Details
+1. Secure Wiki-Based Learning Path Input
+Users access learning through a Wiki macro after authenticating via Cognito:
+[[LearningPath(I want to learn quantum computing)]]
+This renders an input form that:
 
-## Core Value Proposition
+Validates user's Cognito JWT token
+Accepts natural language learning queries
+Sends authenticated request to Learning Service via API Gateway
+Displays discovered chunks from Neo4j Aura
+Creates tickets with questions on confirmation
 
-### For Learners
-- **Instant Learning Paths**: Transform curiosity into structured educational roadmaps in minutes
-- **Concept Mapping**: Break down complex topics into manageable, interconnected concepts
-- **Progress Tracking**: Visualize learning progress using familiar project management tools
-- **Knowledge Dependencies**: Understand prerequisite concepts and learning sequences
-- **Self-Paced Learning**: Track personal progress through milestones and achievements
+2. Neo4j Aura Vector Search Process
+The Learning Service (accessed via API Gateway):
 
-### For Educational Communities
-- **Shared Learning**: Collaborative learning paths that can be shared and improved
-- **Knowledge Reuse**: Discover existing learning paths created by others
-- **Community Progress**: See how others approached similar learning journeys
-- **Collective Intelligence**: AI learns from successful learning patterns
+Validates Cognito token from request
+Generates 5 academic sentences from the query using LLM
+Creates embeddings from these sentences
+Searches Neo4j Aura for chunks with >65% relevance
+Returns up to 20 most relevant chunks
+Caches results in AWS ElastiCache for 1 hour
 
-## The Learning-as-a-Project Philosophy
+3. Chunk-to-Ticket Transformation in RDS
+Each Neo4j chunk is transformed into a ticket in AWS RDS PostgreSQL:
 
-Traditional project management tracks tasks toward a deliverable. Our vision reframes this:
-- **Project** → **Learning Journey**
-- **Roadmap** → **Learning Path**
-- **Milestone** → **Knowledge Checkpoint**
-- **Ticket** → **Concept to Master**
-- **Progress** → **Understanding Level**
-- **Dependencies** → **Prerequisite Concepts**
+Creates Trac schema ticket with learning concept
+Stores question data in ticket_custom table
+Links prerequisites in learning schema
+Associates with authenticated user
 
-## Product Goals
+4. Question-Based Progress
+Learning progress tracked in RDS and cached in ElastiCache:
 
-### Primary Goals
-1. **Automated Learning Path Generation**: Convert any topic of curiosity into a structured learning roadmap
-2. **Concept Decomposition**: Break complex subjects into atomic, learnable concepts
-3. **Progress Visualization**: Track learning advancement through existing Trac interfaces
-4. **Knowledge Discovery**: Find related concepts and learning paths through vector search
+Question displayed prominently in ticket view
+Text area for answer submission
+LLM evaluation providing score (0-1) and feedback
+Score ≥ 0.8 marks concept as mastered
+Answer history with scores and feedback
 
-### Secondary Goals
-1. **Learning Community**: Enable sharing and collaboration on learning paths
-2. **Adaptive Learning**: Adjust paths based on progress and understanding
-3. **Knowledge Graph**: Build connections between concepts across different topics
-4. **Achievement System**: Celebrate learning milestones and concept mastery
+5. Prerequisite Management
+Dependencies enforced through RDS relationships:
 
-## User Personas
+Prerequisite relationships from Neo4j chunks
+Ticket linking for dependencies
+Validation before allowing concept study
+Visual representation in knowledge graph
 
-### 1. The Curious Professional - Alex
-- **Background**: Software developer wanting to learn machine learning
-- **Pain Points**: Overwhelmed by where to start; no clear learning sequence
-- **Needs**: Structured path from basics to advanced ML concepts
-- **Use Case**: Enters "I want to understand neural networks" and receives a complete learning roadmap
+6. GraphViz Knowledge Graph
+Server-generated visualization showing:
 
-### 2. The Career Switcher - Maria
-- **Background**: Marketing manager transitioning to data science
-- **Pain Points**: Doesn't know what she doesn't know; unclear prerequisites
-- **Needs**: Comprehensive path showing all required foundational knowledge
-- **Use Case**: Inputs "career switch to data science" and gets personalized learning milestones
+Concepts as nodes (from RDS tickets)
+Prerequisites as directed edges
+Progress through color coding:
 
-### 3. The Lifelong Learner - Chen
-- **Background**: Retired engineer exploring philosophy
-- **Pain Points**: Academic resources too dense; wants structured self-study
-- **Needs**: Digestible concepts with clear progression
-- **Use Case**: Types "understand existentialism" and receives philosophical concept tickets
+Gray: Not started
+Orange: Studying (answer attempted)
+Green: Mastered (score ≥ 0.8)
 
-### 4. The Student - Sarah
-- **Background**: Computer science student supplementing coursework
-- **Pain Points**: Course doesn't cover practical applications deeply
-- **Needs**: Detailed breakdowns of specific technical topics
-- **Use Case**: Enters "how do compilers really work" for deep-dive learning path
 
-## Key Features
+Clickable nodes linking to ticket pages
 
-### 1. Curiosity Input Interface
-- **Natural Language Input**: "I want to learn about quantum computing"
-- **Context Understanding**: AI infers learning level and goals
-- **Prerequisite Detection**: Automatically identifies required foundation knowledge
-- **Learning Style Options**: Visual, textual, practical, theoretical preferences
+Technical Architecture Overview
+AWS Infrastructure
 
-### 2. Learning Path Generation
-- **Concept Extraction**: AI identifies all key concepts to master
-- **Sequence Optimization**: Orders concepts for optimal learning flow
-- **Difficulty Progression**: Gradual complexity increase
-- **Time Estimates**: Approximate hours per concept
+AWS Cognito: User authentication and JWT tokens
+AWS API Gateway: Service orchestration and routing
+AWS RDS PostgreSQL: Trac schema + learning progress
+Neo4j Aura: Academic chunks with vector embeddings
+AWS ElastiCache Redis: Result caching and session data
 
-### 3. Concept Tickets
-Each learning concept becomes a ticket containing:
-- **Concept Summary**: What you'll learn
-- **Prerequisites**: Required prior knowledge (linked tickets)
-- **Learning Resources**: Curated links, videos, articles
-- **Practice Exercises**: Hands-on activities
-- **Understanding Checklist**: Self-assessment criteria
-- **Related Concepts**: Lateral learning opportunities
+Two-Container System
 
-### 4. Knowledge Milestones
-- **Checkpoint Grouping**: Related concepts grouped into milestones
-- **Achievement Levels**: "Fundamentals," "Intermediate," "Advanced"
-- **Knowledge Verification**: Self-test suggestions
-- **Celebration Points**: Recognition of learning achievements
+Trac Container (Python 2.7): Wiki macros, ticket customization, GraphViz
+Learning Service (Python 3.11): Neo4j search, question generation, answer evaluation
 
-### 5. Progress Tracking
-- **Learning Dashboard**: Visual progress through the roadmap
-- **Concept Mastery**: Track understanding level per concept
-- **Time Investment**: Hours spent learning
-- **Streak Tracking**: Consistent learning habits
-- **Knowledge Graph**: Visualize concept connections
+Secure Data Flow
 
-### 6. Community Learning
-- **Public Learning Paths**: Share your learning journey
-- **Path Forking**: Customize others' learning paths
-- **Concept Discussions**: Comment on concept tickets
-- **Learning Groups**: Form study groups around paths
+Cognito JWT → API Gateway validation
+Query → LLM sentences → Neo4j Aura vector search
+Chunks → RDS tickets with questions
+Student answers → LLM evaluation via API Gateway
+Scores → Progress tracking → Graph updates
 
-## Success Metrics
+MVP Implementation Scope
+What's Included
 
-### Quantitative Metrics
-- **Path Generation Time**: <30 seconds from curiosity to complete roadmap
-- **Concept Quality**: 90%+ learner satisfaction with concept breakdown
-- **Learning Completion**: 40%+ of users complete at least one milestone
-- **Community Engagement**: 25%+ of paths shared publicly
-- **Knowledge Retention**: 70%+ concept recall after milestone completion
+Neo4j Aura vector search for academic content
+LLM question generation per concept
+Answer evaluation with scoring
+Progress tracking based on scores
+GraphViz visualization
+Prerequisite validation
+AWS Cognito authentication
+API Gateway service orchestration
 
-### Qualitative Metrics
-- **Learner Confidence**: Users report feeling less overwhelmed
-- **Learning Efficiency**: Faster time to understanding vs. unstructured learning
-- **Motivation Increase**: Higher sustained interest in topics
-- **Community Value**: Users actively improving shared paths
+What's Excluded
 
-## Implementation Approach
+Community features
+Analytics dashboards beyond basic progress
+Content creation tools
+Manual path editing
+Mobile-native applications
+Multi-tenancy support
 
-### Phase 1: Core Learning Engine
-- Wiki-based curiosity input
-- Basic learning path generation
-- Concept ticket creation
-- Simple progress tracking
+Example Learning Flow
+User Authentication: Sign in via Cognito → Receive JWT token
+Query: "I want to understand blockchain technology"
+Neo4j Aura Returns:
+Chunk 1: {
+  content: "Cryptographic hash functions ensure data integrity...",
+  subject: "Blockchain Fundamentals",
+  concept: "Hash Functions",
+  has_prerequisite: null,
+  prerequisite_for: "Blocks"
+}
 
-### Phase 2: Enhanced Learning Features
-- Prerequisite mapping
-- Resource curation
-- Time estimates
-- Difficulty progression
+Chunk 2: {
+  content: "Blocks contain transactions and reference previous blocks...",
+  subject: "Blockchain Fundamentals", 
+  concept: "Blocks",
+  has_prerequisite: "Hash Functions",
+  prerequisite_for: "Blockchain"
+}
+Generated Tickets in RDS:
+Ticket #101: Hash Functions
+Question: "Explain how cryptographic hash functions ensure data integrity in blockchain systems."
+Expected Answer: "Hash functions create fixed-size outputs..."
 
-### Phase 3: Community Features
-- Public learning paths
-- Path sharing/forking
-- Concept discussions
-- Learning groups
+Ticket #102: Blocks  
+Question: "Describe the structure of a block and how it references previous blocks."
+Expected Answer: "A block contains a header with previous hash..."
+Why This Approach Works
 
-### Phase 4: Advanced Intelligence
-- Personalized learning speeds
-- Adaptive path adjustment
-- Success pattern recognition
-- Recommendation engine
+Enterprise Security: AWS Cognito provides robust authentication
+Real Academic Content: Neo4j Aura contains verified educational chunks
+Active Learning: Questions require understanding, not memorization
+Objective Progress: LLM scoring provides measurable advancement
+Familiar Interface: Uses Trac's existing ticket and roadmap views
+Clear Dependencies: Prerequisite relationships guide learning order
+Cloud Native: Leverages AWS managed services for reliability
 
-## Use Case Examples
+MVP Success Criteria
 
-### Example 1: "I want to understand blockchain"
-**Generated Learning Path:**
-- **Milestone 1: Fundamentals**
-  - Ticket: Cryptographic hash functions
-  - Ticket: Public key cryptography
-  - Ticket: Distributed systems basics
-- **Milestone 2: Core Blockchain**
-  - Ticket: Blockchain data structure
-  - Ticket: Consensus mechanisms
-  - Ticket: Mining and validation
-- **Milestone 3: Applications**
-  - Ticket: Cryptocurrencies
-  - Ticket: Smart contracts
-  - Ticket: DeFi concepts
+Cognito authentication working for all endpoints
+Vector search returns relevant chunks in <2 seconds
+Questions generated for all concepts
+Answer evaluation provides meaningful feedback
+Progress visualization through existing Trac views
+Prerequisite validation prevents skipping concepts
+API Gateway handles service communication securely
 
-### Example 2: "How to become a data scientist"
-**Generated Learning Path:**
-- **Milestone 1: Mathematical Foundations**
-  - Ticket: Statistics fundamentals
-  - Ticket: Linear algebra basics
-  - Ticket: Probability theory
-- **Milestone 2: Programming Skills**
-  - Ticket: Python for data science
-  - Ticket: Data manipulation (Pandas)
-  - Ticket: Visualization techniques
-- **Milestone 3: Machine Learning**
-  - Ticket: Supervised learning
-  - Ticket: Model evaluation
-  - Ticket: Real-world applications
-
-## The Learning Revolution
-
-This system transforms how people approach learning:
-- **From Overwhelming to Structured**: Clear paths through complex topics
-- **From Isolated to Community**: Learn alongside others on similar journeys
-- **From Abstract to Concrete**: Each concept is a tangible, trackable unit
-- **From Unmeasured to Quantified**: See your knowledge growth visually
-
-## Technical Integration Philosophy
-
-We leverage Trac's existing infrastructure creatively:
-- **Projects** store learning journeys
-- **Roadmaps** visualize learning paths
-- **Milestones** mark knowledge checkpoints
-- **Tickets** track individual concepts
-- **Comments** enable learning discussions
-- **Wiki** provides detailed concept explanations
-- **Progress bars** show mastery levels
-
-## Future Vision
-
-### Near-term Enhancements
-- Mobile learning companion app
-- Spaced repetition reminders
-- Concept quiz generation
-- Learning streak gamification
-
-### Long-term Possibilities
-- AI tutoring on stuck concepts
-- Virtual study groups
-- Credential/badge system
-- Integration with online courses
-- Personalized learning pace AI
-
-## Conclusion
-
-By reimagining Trac's project management infrastructure as a learning management system, we create a unique platform that treats education as a manageable project. This approach demystifies complex topics, provides clear progress indicators, and leverages community knowledge to help curious minds transform their interests into structured, achievable learning journeys. The system respects Trac's simplicity while adding powerful AI capabilities that make structured learning accessible to everyone.
+Conclusion
+This MVP delivers a complete question-based learning system by combining Neo4j Aura's academic knowledge base with Trac's project management features, all secured by AWS Cognito and orchestrated through API Gateway. Learners progress by answering questions about concepts discovered through AI-powered search, with clear visualization of their learning journey and enterprise-grade security.

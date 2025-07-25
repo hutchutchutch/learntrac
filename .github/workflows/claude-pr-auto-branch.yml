@@ -1,0 +1,122 @@
+name: Claude PR Auto-Branch Workflow
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  issues:
+    types: [opened, assigned]
+
+jobs:
+  claude-pr:
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Claude Flow
+        run: |
+          npm install -g claude-flow@alpha
+          
+      - name: Configure Git
+        run: |
+          git config --global user.name "Claude Assistant"
+          git config --global user.email "claude@anthropic.com"
+
+      - name: Create Feature Branch
+        id: create-branch
+        run: |
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          BRANCH_NAME="claude-feature-${TIMESTAMP}"
+          git checkout -b $BRANCH_NAME
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+      - name: Extract Claude Command
+        id: extract-command
+        run: |
+          if [ "${{ github.event_name }}" = "issue_comment" ]; then
+            COMMENT="${{ github.event.comment.body }}"
+          elif [ "${{ github.event_name }}" = "pull_request_review_comment" ]; then
+            COMMENT="${{ github.event.comment.body }}"
+          else
+            COMMENT="${{ github.event.issue.body }}"
+          fi
+          
+          # Extract command after @claude
+          COMMAND=$(echo "$COMMENT" | sed -n 's/.*@claude \(.*\)/\1/p')
+          echo "command=$COMMAND" >> $GITHUB_OUTPUT
+
+      - name: Execute Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          prompt: |
+            You are working on branch: ${{ steps.create-branch.outputs.branch_name }}
+            
+            Task: ${{ steps.extract-command.outputs.command }}
+            
+            Important instructions:
+            1. Use the pre-edit and post-edit hooks for all file modifications
+            2. Create atomic commits for each logical change
+            3. Follow the CLAUDE.md guidelines in this repository
+            4. Use descriptive commit messages
+            
+            Before editing any file, run:
+            npx claude-flow hook pre-edit --file "path/to/file"
+            
+            After editing any file, run:
+            npx claude-flow hook post-edit --file "path/to/file" --memory-key "edit/path/to/file"
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          max_turns: 30
+          timeout_minutes: 60
+
+      - name: Push Branch
+        id: push-branch
+        run: |
+          git push origin ${{ steps.create-branch.outputs.branch_name }}
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ steps.create-branch.outputs.branch_name }}
+          title: "Claude: ${{ steps.extract-command.outputs.command }}"
+          body: |
+            ## Claude Assistant Pull Request
+            
+            **Branch**: `${{ steps.create-branch.outputs.branch_name }}`
+            **Triggered by**: @${{ github.event.sender.login }}
+            **Command**: ${{ steps.extract-command.outputs.command }}
+            
+            ### Changes Made
+            This PR was automatically created by Claude Assistant in response to the command above.
+            
+            ### Review Checklist
+            - [ ] Code changes follow project standards
+            - [ ] Tests have been added/updated
+            - [ ] Documentation has been updated
+            - [ ] Changes are backwards compatible
+            
+            ### Claude Flow Integration
+            - Pre-edit hooks were used for validation
+            - Post-edit hooks tracked all changes
+            - Memory coordination maintained throughout
+            
+            ---
+            🤖 Generated with [Claude Code](https://claude.ai/code)
+            
+            Co-Authored-By: Claude <noreply@anthropic.com>
+          labels: |
+            claude-generated
+            automated-pr
+          assignees: ${{ github.event.sender.login }}

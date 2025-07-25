@@ -1,0 +1,16 @@
+# GraphViz installation for LearnTrac Display plugin
+# Add this to your main Dockerfile or run separately
+
+# Install GraphViz and dependencies
+RUN apt-get update && apt-get install -y \
+    graphviz \
+    graphviz-dev \
+    libgraphviz-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Verify GraphViz installation
+RUN dot -V
+
+# Note: For Alpine Linux, use:
+# RUN apk add --no-cache graphviz graphviz-dev

@@ -1,0 +1,151 @@
+# Example Trac configuration for Cognito Authentication Plugin
+# Copy relevant sections to your trac.ini file
+
+# ============================================
+# Component Configuration
+# ============================================
+[components]
+# Enable Cognito authentication components
+cognitoauth.* = enabled
+trac_cognito_auth.* = enabled
+cognito_token_validator.* = enabled
+cognito_permission_policy.* = enabled
+cognito_metrics.* = enabled
+
+# Disable default Trac authentication
+trac.web.auth.loginmodule = disabled
+
+# ============================================
+# Cognito Configuration
+# ============================================
+[cognito]
+# AWS Region where your Cognito User Pool is located
+region = us-east-2
+
+# Cognito User Pool ID
+user_pool_id = us-east-2_IvxzMrWwg
+
+# Cognito App Client ID
+client_id = 5adkv019v4rcu6o87ffg46ep02
+
+# Cognito domain (without .auth.region.amazoncognito.com)
+domain = hutch-learntrac-dev-auth
+
+# Optional: Enable debug logging for troubleshooting
+debug = false
+
+# Optional: JWKS cache TTL in seconds (default: 3600)
+jwks_cache_ttl = 3600
+
+# ============================================
+# Permission Policy Configuration
+# ============================================
+[trac]
+# Add CognitoPermissionPolicy to the permission policies
+permission_policies = CognitoPermissionPolicy, DefaultPermissionPolicy
+
+# ============================================
+# Authentication Configuration
+# ============================================
+[trac]
+# Set authentication method
+auth_cookie_lifetime = 86400  # 24 hours
+auth_cookie_path = /
+check_auth_ip = false  # Set to true for additional security
+
+# ============================================
+# Session Configuration
+# ============================================
+[trac]
+# Session settings
+session_lifetime = 86400  # 24 hours, should match token expiry
+
+# ============================================
+# Logging Configuration (for debugging)
+# ============================================
+[logging]
+# Enable debug logging when troubleshooting
+log_type = file
+log_level = INFO  # Change to DEBUG for troubleshooting
+log_file = trac.log
+log_format = [%(asctime)s] %(levelname)s: %(message)s
+
+# ============================================
+# Custom Group Permissions (Optional)
+# ============================================
+[cognito_permissions]
+# Define custom group-to-permission mappings (JSON format)
+# This extends the default mappings in the plugin
+custom_mappings = {
+    "power_users": ["TICKET_ADMIN", "WIKI_ADMIN", "REPORT_ADMIN"],
+    "reviewers": ["TICKET_MODIFY", "WIKI_MODIFY", "CHANGESET_VIEW"],
+    "guests": ["TICKET_VIEW", "WIKI_VIEW"]
+}
+
+# ============================================
+# API Configuration (for Bearer token auth)
+# ============================================
+[api]
+# Enable API authentication via Bearer tokens
+realm = Trac API
+# Add any API-specific settings here
+
+# ============================================
+# Web UI Configuration
+# ============================================
+[header_logo]
+# Update login/logout links if needed
+link = /
+alt = LearnTrac
+src = site/learntrac-logo.png
+
+[mainnav]
+# Navigation items are automatically updated by the plugin
+# Login/Logout links are added to metanav
+
+# ============================================
+# Security Headers (Recommended)
+# ============================================
+[http_headers]
+# Add security headers for production
+X-Content-Type-Options = nosniff
+X-Frame-Options = SAMEORIGIN
+X-XSS-Protection = 1; mode=block
+Referrer-Policy = strict-origin-when-cross-origin
+
+# ============================================
+# CORS Configuration (for API access)
+# ============================================
+[cors]
+# Configure CORS if using API from external clients
+allowed_origins = https://app.example.com, https://mobile.example.com
+allowed_methods = GET, POST, PUT, DELETE, OPTIONS
+allowed_headers = Authorization, Content-Type, X-Requested-With
+
+# ============================================
+# Environment-Specific Settings
+# ============================================
+
+# Development Environment
+[cognito-dev]
+# Override settings for development
+debug = true
+log_level = DEBUG
+
+# Production Environment
+[cognito-prod]
+# Override settings for production
+debug = false
+log_level = WARNING
+check_auth_ip = true
+
+# ============================================
+# Notes
+# ============================================
+# 1. Ensure all Cognito settings match your AWS configuration
+# 2. The plugin requires HTTPS in production
+# 3. Users must exist in Cognito before they can login
+# 4. Groups must be configured in Cognito User Pool
+# 5. Lambda function can add custom claims to tokens
+# 6. Token expiration is handled automatically
+# 7. Refresh tokens are supported for API clients

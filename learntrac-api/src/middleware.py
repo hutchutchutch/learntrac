@@ -25,11 +25,28 @@ class TimingMiddleware(BaseHTTPMiddleware):
 class AuthMiddleware(BaseHTTPMiddleware):
     """Middleware for authentication handling"""
     
+    # Public endpoints that don't require authentication
+    PUBLIC_PATHS = [
+        "/health",
+        "/api/learntrac/health",
+        "/docs",
+        "/openapi.json",
+        "/redoc",
+    ]
+    
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        # Skip auth for health checks
-        if request.url.path in ["/health", "/api/learntrac/health"]:
+        # Skip auth for public endpoints
+        if any(request.url.path.startswith(path) for path in self.PUBLIC_PATHS):
             return await call_next(request)
         
-        # TODO: Implement actual authentication logic
-        # For now, just pass through
-        return await call_next(request)
+        # For protected endpoints, authentication is handled by FastAPI dependencies
+        # This middleware just adds CORS and security headers
+        response = await call_next(request)
+        
+        # Add security headers
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        
+        return response

@@ -8,6 +8,7 @@
 2. **Task spawning** → Spawn ALL agents in ONE message
 3. **File operations** → Batch ALL reads/writes together
 4. **NEVER** operate sequentially after swarm init
+5. **Context Help** use RepoPrompt MCP pair programming to chat about file structure
 
 ## 🚨 CRITICAL: CONCURRENT EXECUTION FOR ALL ACTIONS
 
@@ -500,6 +501,92 @@ See `.claude/commands/` for detailed documentation on all features.
 6. **Enable Hooks**: Use the pre-configured hooks for automation
 7. **GitHub First**: Use GitHub tools for repository management
 
+## 🔄 CRITICAL: Branch and PR Workflow
+
+### 🚨 MANDATORY: Create Branches for ALL Changes
+
+**ABSOLUTE RULE**: NEVER commit directly to main. ALWAYS create feature branches:
+
+### 📝 Branch Creation Protocol
+
+**BEFORE any file edits:**
+
+```bash
+# 1. Create feature branch
+npx claude-flow hook pre-branch --description "Your task description"
+
+# 2. Configure branch
+npx claude-flow hook post-branch --branch [branch-name] --setup-pr
+```
+
+### 🔧 Edit Workflow with Branches
+
+**For EVERY file operation:**
+
+```bash
+# Before editing
+npx claude-flow hook pre-edit --file "path/to/file"
+
+# Make your edits using Claude Code tools
+
+# After editing
+npx claude-flow hook post-edit --file "path/to/file" --memory-key "edit/description"
+
+# Commit changes
+git add .
+git commit -m "feat: descriptive commit message
+
+- Detail 1
+- Detail 2
+
+🤖 Generated with Claude Flow"
+```
+
+### 🚀 Automatic PR Creation
+
+**After completing changes:**
+
+```bash
+# Create PR automatically
+npx claude-flow hook auto-pr \
+  --branch [current-branch] \
+  --title "Clear PR title" \
+  --reviewers "appropriate-reviewers"
+```
+
+### ✅ PR Best Practices
+
+1. **One PR per logical change** - Don't mix unrelated changes
+2. **Descriptive titles** - "Add user authentication" not "Update files"
+3. **Link issues** - Reference related issues with "Closes #123"
+4. **Add reviewers** - Based on code ownership
+5. **Use draft PRs** - For work in progress
+
+### 🎯 GitHub Actions Integration
+
+When @claude is mentioned in issues or PRs:
+
+1. Claude automatically creates a feature branch
+2. Makes requested changes using hooks
+3. Commits with descriptive messages
+4. Creates a PR for review
+5. Links back to the original issue/comment
+
+### 📋 Commit Message Format
+
+```
+type(scope): subject
+
+body (optional)
+
+footer (optional)
+
+🤖 Generated with Claude Flow
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+Types: feat, fix, docs, style, refactor, test, chore
+
 ## 🧠 SWARM ORCHESTRATION PATTERN
 
 ### You are the SWARM ORCHESTRATOR. **IMMEDIATELY SPAWN AGENTS IN PARALLEL** to execute tasks
@@ -904,3 +991,7 @@ Claude Flow extends the base coordination with:
 ---
 
 Remember: **Claude Flow coordinates, Claude Code creates!** Start with `mcp__claude-flow__swarm_init` to enhance your development workflow.
+
+## Task Master AI Instructions
+**Import Task Master's development workflow commands and guidelines, treat as if import is in the main CLAUDE.md file.**
+@./.taskmaster/CLAUDE.md

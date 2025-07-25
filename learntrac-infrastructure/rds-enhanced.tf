@@ -1,0 +1,322 @@
+# Enhanced RDS Configuration for LearnTrac
+
+# Parameter group for PostgreSQL 15 optimization
+resource "aws_db_parameter_group" "learntrac_pg15" {
+  name        = "${local.project_prefix}-pg15-params"
+  family      = "postgres15"
+  description = "Custom parameter group for LearnTrac PostgreSQL 15"
+
+  # Connection settings - ALL STATIC PARAMETERS IN PG15
+  parameter {
+    name         = "max_connections"
+    value        = var.environment == "prod" ? "200" : "100"
+    apply_method = "pending-reboot"  # Static parameter
+  }
+
+  # Memory settings - ALL STATIC
+  parameter {
+    name         = "shared_buffers"
+    value        = "{DBInstanceClassMemory/4}"
+    apply_method = "pending-reboot"  # Static parameter
+  }
+
+  parameter {
+    name         = "effective_cache_size"
+    value        = "{DBInstanceClassMemory*3/4}"
+    apply_method = "pending-reboot"  # Static parameter
+  }
+
+  parameter {
+    name         = "work_mem"
+    value        = "4096"
+    apply_method = "pending-reboot"  # Static parameter
+  }
+
+  parameter {
+    name         = "maintenance_work_mem"
+    value        = "65536"
+    apply_method = "pending-reboot"  # Static parameter
+  }
+
+  # Query optimization - ALL STATIC
+  parameter {
+    name         = "random_page_cost"
+    value        = "1.1"
+    apply_method = "pending-reboot"  # Static parameter
+  }
+
+  parameter {
+    name         = "effective_io_concurrency"
+    value        = "200"
+    apply_method = "pending-reboot"  # Static parameter
+  }
+
+  # Logging for troubleshooting - ALL STATIC
+  parameter {
+    name         = "log_statement"
+    value        = var.environment == "prod" ? "mod" : "all"
+    apply_method = "pending-reboot"  # Static parameter
+  }
+
+  parameter {
+    name         = "log_min_duration_statement"
+    value        = var.environment == "prod" ? "1000" : "500"
+    apply_method = "pending-reboot"  # Static parameter
+  }
+
+  parameter {
+    name         = "log_connections"
+    value        = "1"
+    apply_method = "pending-reboot"  # Static parameter
+  }
+
+  parameter {
+    name         = "log_disconnections"
+    value        = "1"
+    apply_method = "pending-reboot"  # Static parameter
+  }
+
+  # Enable query performance insights - BOTH STATIC
+  parameter {
+    name         = "shared_preload_libraries"
+    value        = "pg_stat_statements"
+    apply_method = "pending-reboot"  # Static parameter
+  }
+
+  parameter {
+    name         = "pg_stat_statements.track"
+    value        = "all"
+    apply_method = "pending-reboot"  # Static parameter
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${local.project_prefix}-parameter-group"
+  })
+}
+
+# Option group for additional features
+resource "aws_db_option_group" "learntrac_options" {
+  name                     = "${local.project_prefix}-options"
+  option_group_description = "Option group for LearnTrac PostgreSQL"
+  engine_name              = "postgres"
+  major_engine_version     = "15"
+
+  tags = merge(local.common_tags, {
+    Name = "${local.project_prefix}-option-group"
+  })
+}
+
+# Enhanced monitoring IAM role
+resource "aws_iam_role" "rds_enhanced_monitoring" {
+  count = var.environment == "prod" ? 1 : 0
+  name  = "${local.project_prefix}-rds-monitoring"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "monitoring.rds.amazonaws.com"
+      }
+    }]
+  })
+
+  tags = local.common_tags
+}
+
+resource "aws_iam_role_policy_attachment" "rds_enhanced_monitoring" {
+  count      = var.environment == "prod" ? 1 : 0
+  role       = aws_iam_role.rds_enhanced_monitoring[0].name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
+}
+
+# Security group for Lambda/ECS to RDS access
+resource "aws_security_group" "rds_app_access" {
+  name        = "${local.project_prefix}-rds-app-sg"
+  description = "Security group for application layer RDS access"
+  vpc_id      = data.aws_vpc.default.id
+
+  tags = merge(local.common_tags, {
+    Name = "${local.project_prefix}-rds-app-access"
+  })
+}
+
+# Allow ECS tasks to access RDS
+resource "aws_security_group_rule" "rds_from_ecs" {
+  type                     = "ingress"
+  from_port                = 5432
+  to_port                  = 5432
+  protocol                 = "tcp"
+  source_security_group_id = module.trac_service.security_group_id
+  security_group_id        = aws_security_group.rds.id
+  description              = "PostgreSQL access from ECS tasks"
+}
+
+# Allow Lambda functions to access RDS
+resource "aws_security_group_rule" "rds_from_lambda" {
+  type                     = "ingress"
+  from_port                = 5432
+  to_port                  = 5432
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.lambda_sg.id
+  security_group_id        = aws_security_group.rds.id
+  description              = "PostgreSQL access from Lambda functions"
+}
+
+# Lambda security group
+resource "aws_security_group" "lambda_sg" {
+  name        = "${local.project_prefix}-lambda-sg"
+  description = "Security group for Lambda functions"
+  vpc_id      = data.aws_vpc.default.id
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow all outbound traffic"
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${local.project_prefix}-lambda-sg"
+  })
+}
+
+# CloudWatch log group for RDS logs
+resource "aws_cloudwatch_log_group" "rds_logs" {
+  name              = "/aws/rds/instance/${aws_db_instance.learntrac.id}/postgresql"
+  retention_in_days = var.environment == "prod" ? 30 : 7
+
+  tags = merge(local.common_tags, {
+    Name = "${local.project_prefix}-rds-logs"
+  })
+}
+
+# CloudWatch alarms for RDS
+resource "aws_cloudwatch_metric_alarm" "rds_cpu" {
+  alarm_name          = "${local.project_prefix}-rds-cpu-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/RDS"
+  period              = "300"
+  statistic           = "Average"
+  threshold           = var.environment == "prod" ? "80" : "90"
+  alarm_description   = "RDS CPU utilization is too high"
+  alarm_actions       = var.environment == "prod" ? [aws_sns_topic.alerts[0].arn] : []
+
+  dimensions = {
+    DBInstanceIdentifier = aws_db_instance.learntrac.id
+  }
+
+  tags = local.common_tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "rds_storage" {
+  alarm_name          = "${local.project_prefix}-rds-storage-low"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "FreeStorageSpace"
+  namespace           = "AWS/RDS"
+  period              = "300"
+  statistic           = "Average"
+  threshold           = "2147483648"  # 2GB in bytes
+  alarm_description   = "RDS free storage space is low"
+  alarm_actions       = var.environment == "prod" ? [aws_sns_topic.alerts[0].arn] : []
+
+  dimensions = {
+    DBInstanceIdentifier = aws_db_instance.learntrac.id
+  }
+
+  tags = local.common_tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "rds_connections" {
+  alarm_name          = "${local.project_prefix}-rds-connections-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "DatabaseConnections"
+  namespace           = "AWS/RDS"
+  period              = "300"
+  statistic           = "Average"
+  threshold           = var.environment == "prod" ? "180" : "90"
+  alarm_description   = "RDS connection count is high"
+  alarm_actions       = var.environment == "prod" ? [aws_sns_topic.alerts[0].arn] : []
+
+  dimensions = {
+    DBInstanceIdentifier = aws_db_instance.learntrac.id
+  }
+
+  tags = local.common_tags
+}
+
+# SNS topic for alerts (production only)
+resource "aws_sns_topic" "alerts" {
+  count = var.environment == "prod" ? 1 : 0
+  name  = "${local.project_prefix}-alerts"
+
+  tags = merge(local.common_tags, {
+    Name = "${local.project_prefix}-alerts"
+  })
+}
+
+# Update the main RDS instance to use enhanced configuration
+# resource "aws_db_instance" "learntrac_enhanced" {
+#   # This would replace the existing RDS instance with enhanced settings
+#   # Uncomment and modify the existing aws_db_instance.learntrac resource
+#   
+#   # parameter_group_name = aws_db_parameter_group.learntrac_pg15.name
+#   # option_group_name    = aws_db_option_group.learntrac_options.name
+#   # monitoring_role_arn  = var.environment == "prod" ? aws_iam_role.rds_enhanced_monitoring[0].arn : null
+#   
+#   # Enable automated backups to S3
+#   # backup_retention_period         = var.environment == "prod" ? 30 : 7
+#   # backup_window                   = "03:00-04:00"
+#   # preferred_maintenance_window    = "sun:04:00-sun:05:00"
+#   # copy_tags_to_snapshot          = true
+#   
+#   # Performance and reliability
+#   # multi_az                       = var.environment == "prod"
+#   # storage_encrypted              = true
+#   # kms_key_id                     = aws_kms_key.rds_encryption.arn
+#   
+#   # Enable deletion protection for production
+#   # deletion_protection            = var.environment == "prod"
+# }
+
+# KMS key for RDS encryption
+resource "aws_kms_key" "rds_encryption" {
+  description             = "KMS key for RDS encryption"
+  deletion_window_in_days = 10
+  enable_key_rotation     = true
+
+  tags = merge(local.common_tags, {
+    Name = "${local.project_prefix}-rds-kms"
+  })
+}
+
+resource "aws_kms_alias" "rds_encryption" {
+  name          = "alias/${local.project_prefix}-rds"
+  target_key_id = aws_kms_key.rds_encryption.key_id
+}
+
+# Outputs for enhanced RDS configuration
+output "rds_parameter_group" {
+  value       = aws_db_parameter_group.learntrac_pg15.name
+  description = "RDS parameter group name"
+}
+
+output "rds_security_groups" {
+  value = {
+    main   = aws_security_group.rds.id
+    app    = aws_security_group.rds_app_access.id
+    lambda = aws_security_group.lambda_sg.id
+  }
+  description = "RDS security group IDs"
+}
+
+output "rds_monitoring_enabled" {
+  value       = var.environment == "prod"
+  description = "Whether enhanced monitoring is enabled"
+}
