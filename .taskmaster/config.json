@@ -22,8 +22,8 @@
   "global": {
     "logLevel": "info",
     "debug": false,
-    "defaultNumTasks": 15,
-    "defaultSubtasks": 10,
+    "defaultNumTasks": 5,
+    "defaultSubtasks": 5,
     "defaultPriority": "medium",
     "projectName": "Taskmaster",
     "ollamaBaseURL": "http://localhost:11434/api",

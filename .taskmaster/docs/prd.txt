@@ -1,2196 +1,394 @@
-Executive Summary
-This product vision guide outlines the MVP for transforming Trac 1.4.4 into a question-based learning management system. By leveraging Neo4j Aura for academic content discovery and LLM-powered question generation, we enable learners to master concepts through active question-answering while using Trac's proven project management infrastructure. The system is deployed on AWS with Cognito authentication, API Gateway for service communication, RDS PostgreSQL for data persistence, and ElastiCache for caching.
-Vision Statement
-Transform Trac into a cloud-native personal learning platform where learners discover academic knowledge through AI-powered vector search, master concepts by answering generated questions, and track their progress through familiar project management visualizations—all secured by AWS Cognito and orchestrated through API Gateway.
-MVP Core Features
-1. Instant Learning Paths via Vector Search
-Transform learning queries into structured paths by searching Neo4j Aura's knowledge base of academic chunks, returning the most relevant content based on semantic similarity.
-2. Concept Mapping with Questions
-Each discovered chunk becomes a learning ticket with an LLM-generated question that tests understanding of the concept.
-3. Progress Tracking through Answer Evaluation
-Track learning progress by evaluating student answers against expected responses, with scores determining mastery status.
-4. Knowledge Dependencies from Chunks
-Map prerequisite relationships between concepts using metadata from Neo4j Aura chunks, ensuring proper learning sequence.
-5. Self-Paced Learning with Answer History
-Learn at individual pace with time tracking, answer attempts history, and personal notes on each concept.
-6. Knowledge Graph Visualization
-Display learning paths as GraphViz-generated images showing concept relationships, prerequisites, and progress through color coding.
-The Learning-as-a-Project Philosophy
-We reimagine Trac's components for question-based learning:
-
-Ticket → Learning Concept with Question
-Milestone → Subject Grouping (from chunk metadata)
-Roadmap → Learning Path Progress
-Dependencies → Prerequisite Concepts (from chunk relationships)
-Status Workflow → Answer-Based Progress (new → studying → mastered)
-
-User Persona
-The Self-Directed Learner
-
-Context: Individual seeking to master academic topics independently
-Need: Structured learning with clear questions to test understanding
-Use Case: Enters "I want to understand machine learning" and receives learning path with questions for each concept
-Authentication: Signs in via AWS Cognito to access personalized learning
-
-MVP Feature Details
-1. Secure Wiki-Based Learning Path Input
-Users access learning through a Wiki macro after authenticating via Cognito:
-[[LearningPath(I want to learn quantum computing)]]
-This renders an input form that:
-
-Validates user's Cognito JWT token
-Accepts natural language learning queries
-Sends authenticated request to Learning Service via API Gateway
-Displays discovered chunks from Neo4j Aura
-Creates tickets with questions on confirmation
-
-2. Neo4j Aura Vector Search Process
-The Learning Service (accessed via API Gateway):
-
-Validates Cognito token from request
-Generates 5 academic sentences from the query using LLM
-Creates embeddings from these sentences
-Searches Neo4j Aura for chunks with >65% relevance
-Returns up to 20 most relevant chunks
-Caches results in AWS ElastiCache for 1 hour
-
-3. Chunk-to-Ticket Transformation in RDS
-Each Neo4j chunk is transformed into a ticket in AWS RDS PostgreSQL:
-
-Creates Trac schema ticket with learning concept
-Stores question data in ticket_custom table
-Links prerequisites in learning schema
-Associates with authenticated user
-
-4. Question-Based Progress
-Learning progress tracked in RDS and cached in ElastiCache:
-
-Question displayed prominently in ticket view
-Text area for answer submission
-LLM evaluation providing score (0-1) and feedback
-Score ≥ 0.8 marks concept as mastered
-Answer history with scores and feedback
-
-5. Prerequisite Management
-Dependencies enforced through RDS relationships:
-
-Prerequisite relationships from Neo4j chunks
-Ticket linking for dependencies
-Validation before allowing concept study
-Visual representation in knowledge graph
-
-6. GraphViz Knowledge Graph
-Server-generated visualization showing:
-
-Concepts as nodes (from RDS tickets)
-Prerequisites as directed edges
-Progress through color coding:
-
-Gray: Not started
-Orange: Studying (answer attempted)
-Green: Mastered (score ≥ 0.8)
-
-
-Clickable nodes linking to ticket pages
-
-Technical Architecture Overview
-AWS Infrastructure
-
-AWS Cognito: User authentication and JWT tokens
-AWS API Gateway: Service orchestration and routing
-AWS RDS PostgreSQL: Trac schema + learning progress
-Neo4j Aura: Academic chunks with vector embeddings
-AWS ElastiCache Redis: Result caching and session data
-
-Two-Container System
-
-Trac Container (Python 2.7): Wiki macros, ticket customization, GraphViz
-Learning Service (Python 3.11): Neo4j search, question generation, answer evaluation
-
-Secure Data Flow
-
-Cognito JWT → API Gateway validation
-Query → LLM sentences → Neo4j Aura vector search
-Chunks → RDS tickets with questions
-Student answers → LLM evaluation via API Gateway
-Scores → Progress tracking → Graph updates
-
-MVP Implementation Scope
-What's Included
-
-Neo4j Aura vector search for academic content
-LLM question generation per concept
-Answer evaluation with scoring
-Progress tracking based on scores
-GraphViz visualization
-Prerequisite validation
-AWS Cognito authentication
-API Gateway service orchestration
-
-What's Excluded
-
-Community features
-Analytics dashboards beyond basic progress
-Content creation tools
-Manual path editing
-Mobile-native applications
-Multi-tenancy support
-
-Example Learning Flow
-User Authentication: Sign in via Cognito → Receive JWT token
-Query: "I want to understand blockchain technology"
-Neo4j Aura Returns:
-Chunk 1: {
-  content: "Cryptographic hash functions ensure data integrity...",
-  subject: "Blockchain Fundamentals",
-  concept: "Hash Functions",
-  has_prerequisite: null,
-  prerequisite_for: "Blocks"
-}
-
-Chunk 2: {
-  content: "Blocks contain transactions and reference previous blocks...",
-  subject: "Blockchain Fundamentals", 
-  concept: "Blocks",
-  has_prerequisite: "Hash Functions",
-  prerequisite_for: "Blockchain"
-}
-Generated Tickets in RDS:
-Ticket #101: Hash Functions
-Question: "Explain how cryptographic hash functions ensure data integrity in blockchain systems."
-Expected Answer: "Hash functions create fixed-size outputs..."
-
-Ticket #102: Blocks  
-Question: "Describe the structure of a block and how it references previous blocks."
-Expected Answer: "A block contains a header with previous hash..."
-Why This Approach Works
-
-Enterprise Security: AWS Cognito provides robust authentication
-Real Academic Content: Neo4j Aura contains verified educational chunks
-Active Learning: Questions require understanding, not memorization
-Objective Progress: LLM scoring provides measurable advancement
-Familiar Interface: Uses Trac's existing ticket and roadmap views
-Clear Dependencies: Prerequisite relationships guide learning order
-Cloud Native: Leverages AWS managed services for reliability
-
-MVP Success Criteria
-
-Cognito authentication working for all endpoints
-Vector search returns relevant chunks in <2 seconds
-Questions generated for all concepts
-Answer evaluation provides meaningful feedback
-Progress visualization through existing Trac views
-Prerequisite validation prevents skipping concepts
-API Gateway handles service communication securely
-
-Conclusion
-This MVP delivers a complete question-based learning system by combining Neo4j Aura's academic knowledge base with Trac's project management features, all secured by AWS Cognito and orchestrated through API Gateway. Learners progress by answering questions about concepts discovered through AI-powered search, with clear visualization of their learning journey and enterprise-grade security.
-
-# Functional Requirements Document - Question-Based Learning MVP for Trac 1.4.4
-1. Introduction
-1.1 Purpose
-This document defines the functional requirements for the MVP implementation of question-based learning paths in Trac 1.4.4. The system uses Neo4j Aura vector search to discover academic content, LLM-generated questions to test understanding, and AWS services for authentication, orchestration, and data persistence.
-1.2 MVP Scope
-
-Neo4j Aura vector search for academic chunk discovery
-LLM question generation for each concept
-Answer evaluation with scoring
-Progress tracking based on answer scores
-GraphViz knowledge graph visualization
-Prerequisite validation from chunk metadata
-AWS Cognito authentication
-AWS API Gateway for service communication
-AWS RDS PostgreSQL for data persistence
-AWS ElastiCache for caching
-
-1.3 Out of Scope for MVP
-
-Content creation or chunk management in Neo4j Aura
-Community features
-Analytics beyond basic progress
-Manual path editing
-Multiple learning paths per user
-Multi-tenancy support
-
-2. Functional Requirements
-2.1 Authentication (FR-AU)
-FR-AU-1: AWS Cognito Integration
-Priority: Critical
-Description: Secure authentication using AWS Cognito
-Requirements:
-
-FR-AU-1.1: Configure Cognito User Pool for learners
-FR-AU-1.2: Implement JWT token validation
-FR-AU-1.3: Secure all API endpoints with Cognito
-FR-AU-1.4: Include user_id in all API requests
-FR-AU-1.5: Handle token refresh automatically
-
-FR-AU-2: Trac Session Integration
-Priority: Critical
-Description: Map Cognito users to Trac sessions
-Requirements:
-
-FR-AU-2.1: Create Trac session on successful Cognito auth
-FR-AU-2.2: Store Cognito user_id in session attributes
-FR-AU-2.3: Validate JWT on each request
-FR-AU-2.4: Logout clears both Trac and Cognito sessions
-FR-AU-2.5: Handle session expiration gracefully
-
-2.2 API Gateway Integration (FR-AG)
-FR-AG-1: Service Routing
-Priority: Critical
-Description: Route requests through AWS API Gateway
-Requirements:
-
-FR-AG-1.1: Configure routes for Trac endpoints
-FR-AG-1.2: Configure routes for Learning Service
-FR-AG-1.3: Implement request/response transformations
-FR-AG-1.4: Add CORS headers for browser access
-FR-AG-1.5: Rate limiting per user
-
-FR-AG-2: Authorization
-Priority: Critical
-Description: Validate Cognito tokens at API Gateway
-Requirements:
-
-FR-AG-2.1: Configure Cognito Authorizer
-FR-AG-2.2: Validate JWT on every request
-FR-AG-2.3: Extract user claims from token
-FR-AG-2.4: Pass user context to services
-FR-AG-2.5: Return 401 for invalid tokens
-
-2.3 Wiki Integration (FR-WI)
-FR-WI-1: Learning Path Wiki Macro
-Priority: Critical
-Description: Wiki macro for initiating learning path generation
-Requirements:
-
-FR-WI-1.1: Create [[LearningPath]] macro for Wiki pages
-FR-WI-1.2: Validate user is authenticated via Cognito
-FR-WI-1.3: Include JWT token in API Gateway requests
-FR-WI-1.4: Show loading spinner during Neo4j Aura search
-FR-WI-1.5: Display discovered chunks before ticket creation
-
-FR-WI-2: Knowledge Graph Macro
-Priority: High
-Description: Wiki macro to display GraphViz knowledge graph
-Requirements:
-
-FR-WI-2.1: Create [[KnowledgeGraph]] macro
-FR-WI-2.2: Fetch user-specific progress from RDS
-FR-WI-2.3: Generate GraphViz PNG with clickable areas
-FR-WI-2.4: Cache generated graphs in ElastiCache
-FR-WI-2.5: Color nodes based on answer scores
-
-2.4 Learning Path Generation (FR-LP)
-FR-LP-1: Query Processing
-Priority: Critical
-Description: Process learning queries through LLM and Neo4j Aura
-Requirements:
-
-FR-LP-1.1: Accept authenticated requests via API Gateway
-FR-LP-1.2: Generate 5 academic sentences via LLM
-FR-LP-1.3: Create embeddings for sentences
-FR-LP-1.4: Search Neo4j Aura for chunks >65% relevance
-FR-LP-1.5: Cache results in ElastiCache (1 hour TTL)
-
-FR-LP-2: Chunk Processing
-Priority: Critical
-Description: Extract learning data from Neo4j Aura chunks
-Requirements:
-
-FR-LP-2.1: Connect securely to Neo4j Aura
-FR-LP-2.2: Extract subject for milestone grouping
-FR-LP-2.3: Extract concept for ticket summary
-FR-LP-2.4: Extract has_prerequisite relationship
-FR-LP-2.5: Validate chunk data structure
-
-FR-LP-3: Question Generation
-Priority: Critical
-Description: Generate questions for each concept via API Gateway
-Requirements:
-
-FR-LP-3.1: Route to LLM service through API Gateway
-FR-LP-3.2: Base question on chunk content
-FR-LP-3.3: Set question difficulty (1-5)
-FR-LP-3.4: Include learning query as context
-FR-LP-3.5: Store in RDS with user association
-
-2.5 RDS Database Management (FR-DB)
-FR-DB-1: Trac Schema Setup
-Priority: Critical
-Description: Initialize Trac schema in AWS RDS PostgreSQL
-Requirements:
-
-FR-DB-1.1: Create all standard Trac tables
-FR-DB-1.2: Initialize ticket workflow configuration
-FR-DB-1.3: Set up milestone and component tables
-FR-DB-1.4: Configure session management tables
-FR-DB-1.5: Add required indexes for performance
-
-FR-DB-2: Learning Schema Creation
-Priority: Critical
-Description: Create learning-specific schema in RDS
-Requirements:
-
-FR-DB-2.1: Create learning schema namespace
-FR-DB-2.2: Add paths, progress, prerequisites tables
-FR-DB-2.3: Set up foreign key relationships
-FR-DB-2.4: Create indexes for query performance
-FR-DB-2.5: Add constraints for data integrity
-
-2.6 Ticket Management (FR-TM)
-FR-TM-1: Concept Ticket Creation
-Priority: Critical
-Description: Create Trac tickets in RDS for learning concepts
-Requirements:
-
-FR-TM-1.1: Insert into RDS ticket table
-FR-TM-1.2: Associate with Cognito user_id
-FR-TM-1.3: Use chunk content as description
-FR-TM-1.4: Assign to subject milestone
-FR-TM-1.5: Set initial status to 'new'
-
-FR-TM-2: Learning Fields Storage
-Priority: Critical
-Description: Store learning data in RDS ticket_custom
-Requirements:
-
-FR-TM-2.1: Store 'question' text in RDS
-FR-TM-2.2: Store 'question_difficulty' (1-5)
-FR-TM-2.3: Store 'question_context' (original query)
-FR-TM-2.4: Store 'expected_answer' for evaluation
-FR-TM-2.5: Store prerequisite relationships
-
-2.7 Answer Evaluation (FR-AE)
-FR-AE-1: Answer Submission
-Priority: Critical
-Description: Process answer submissions through API Gateway
-Requirements:
-
-FR-AE-1.1: Validate Cognito token
-FR-AE-1.2: Submit to Learning Service via API Gateway
-FR-AE-1.3: Store attempt in RDS
-FR-AE-1.4: Update ElastiCache with progress
-FR-AE-1.5: Handle evaluation timeouts
-
-FR-AE-2: LLM Evaluation
-Priority: Critical
-Description: Evaluate answers using LLM via API Gateway
-Requirements:
-
-FR-AE-2.1: Route to LLM service through API Gateway
-FR-AE-2.2: Include question context in evaluation
-FR-AE-2.3: Return score (0.0 to 1.0)
-FR-AE-2.4: Provide detailed feedback
-FR-AE-2.5: Cache evaluation results
-
-FR-AE-3: Progress Updates
-Priority: High
-Description: Update progress in RDS and cache
-Requirements:
-
-FR-AE-3.1: Update RDS learning.progress table
-FR-AE-3.2: Update ticket status if mastered
-FR-AE-3.3: Invalidate ElastiCache entries
-FR-AE-3.4: Trigger graph regeneration
-FR-AE-3.5: Maintain answer history in RDS
-
-2.8 Caching Strategy (FR-CS)
-FR-CS-1: ElastiCache Integration
-Priority: High
-Description: Use AWS ElastiCache for performance
-Requirements:
-
-FR-CS-1.1: Cache Neo4j search results (1 hour)
-FR-CS-1.2: Cache user progress data (15 minutes)
-FR-CS-1.3: Cache generated graphs (until progress change)
-FR-CS-1.4: Implement cache invalidation
-FR-CS-1.5: Handle cache misses gracefully
-
-FR-CS-2: Session Data
-Priority: High
-Description: Store session data in ElastiCache
-Requirements:
-
-FR-CS-2.1: Store active Cognito sessions
-FR-CS-2.2: Cache user preferences
-FR-CS-2.3: Track active learning paths
-FR-CS-2.4: Implement session timeout
-FR-CS-2.5: Clear on logout
-
-2.9 Learning Service API (FR-LS)
-FR-LS-1: Path Generation Endpoint
-Priority: Critical
-Description: API for Neo4j Aura search via API Gateway
-Requirements:
-
-FR-LS-1.1: POST /api/v1/learning-paths/generate
-FR-LS-1.2: Validate Cognito token
-FR-LS-1.3: Search Neo4j Aura vector store
-FR-LS-1.4: Cache in ElastiCache
-FR-LS-1.5: Return chunks with metadata
-
-FR-LS-2: Ticket Creation Endpoint
-Priority: Critical
-Description: API for creating tickets in RDS
-Requirements:
-
-FR-LS-2.1: POST /api/v1/learning-paths/create
-FR-LS-2.2: Validate user authorization
-FR-LS-2.3: Create tickets in RDS
-FR-LS-2.4: Establish prerequisites in RDS
-FR-LS-2.5: Return created ticket IDs
-
-FR-LS-3: Answer Evaluation Endpoint
-Priority: Critical
-Description: API for evaluating answers
-Requirements:
-
-FR-LS-3.1: PUT /api/v1/progress/{ticket_id}/submit-answer
-FR-LS-3.2: Verify user owns ticket
-FR-LS-3.3: Retrieve from RDS
-FR-LS-3.4: Update RDS and ElastiCache
-FR-LS-3.5: Return evaluation results
-
-3. Data Requirements
-3.1 Neo4j Aura Configuration
-
-Configured instance with vector index
-Pre-loaded academic chunks
-Secure connection credentials
-Read-only access from Learning Service
-
-3.2 RDS PostgreSQL Schema
-
-Complete Trac 1.4.4 schema
-Learning schema with custom tables
-User associations via Cognito ID
-Optimized indexes for queries
-
-3.3 ElastiCache Redis Structure
-
-Search results: search:{query}:{user_id} (1 hour TTL)
-User progress: progress:{user_id}:{ticket_id} (15 min TTL)
-Graph cache: graph:{milestone}:{user_id} (until invalidated)
-Session data: session:{cognito_id} (2 hour TTL)
-
-4. Non-Functional Requirements
-4.1 Performance
-
-API Gateway latency: <100ms overhead
-Neo4j Aura search: <2 seconds for 20 chunks
-RDS queries: <100ms for indexed queries
-ElastiCache operations: <10ms
-End-to-end response: <3 seconds
-
-4.2 Security
-
-All endpoints secured with Cognito
-API Gateway request validation
-RDS encryption at rest and in transit
-Neo4j Aura secure connection
-No direct database access from browser
-
-4.3 Reliability
-
-API Gateway retry logic
-RDS Multi-AZ deployment (production)
-ElastiCache automatic failover
-Graceful degradation on cache miss
-Circuit breakers for external services
-
-4.4 Scalability
-
-API Gateway auto-scaling
-RDS read replicas for queries
-ElastiCache cluster mode
-Stateless service containers
-Horizontal scaling for Learning Service
-
-5. Integration Requirements
-5.1 AWS Service Integration
-
-Cognito User Pool configuration
-API Gateway REST API setup
-RDS PostgreSQL 15 compatibility
-ElastiCache Redis 7 protocol
-CloudWatch logging for all services
-
-5.2 External Service Integration
-
-Neo4j Aura cloud instance
-LLM API (OpenAI/Anthropic) via API Gateway
-GraphViz binary in containers
-
-6. Constraints
-6.1 Technical Constraints
-
-Trac 1.4.4 Python 2.7 compatibility
-Neo4j Aura connection limits
-API Gateway request size limits
-RDS connection pool management
-ElastiCache memory limits
-
-6.2 AWS Service Limits
-
-Cognito user pool quotas
-API Gateway rate limits
-RDS storage and IOPS limits
-ElastiCache node types
-Regional service availability
-
-System Architecture - Question-Based Learning MVP for Trac 1.4.4
-1. Overview
-This document describes the system architecture for implementing question-based learning paths in Trac 1.4.4 using AWS managed services. The system leverages Neo4j Aura for vector search, AWS RDS PostgreSQL for data persistence, AWS Cognito for authentication, AWS API Gateway for service orchestration, and AWS ElastiCache for caching.
-2. Architecture Principles
-2.1 MVP Principles
-
-Cloud-Native: Leverage AWS managed services for reliability
-Secure by Design: AWS Cognito authentication on all endpoints
-Service Oriented: API Gateway manages all inter-service communication
-Zero Trac Modification: All features via plugins and external services
-Clear Separation: Python 2.7 for Trac UI, Python 3.11 for modern features
-
-2.2 Technical Decisions
-
-Two-container architecture (Trac + Learning Service)
-AWS RDS PostgreSQL for all persistent data
-Neo4j Aura for vector search (external managed service)
-AWS ElastiCache Redis for caching
-AWS Cognito for authentication
-AWS API Gateway for service orchestration
-GraphViz for knowledge graph visualization
-
-3. High-Level Architecture
-mermaidgraph TB
-    subgraph "User Browser"
-        UI1[Wiki Pages<br/>with Macros]
-        UI2[Ticket Views]
-        UI3[Knowledge Graphs]
-    end
-    
-    UI1 --> COGNITO[AWS Cognito<br/>Authentication]
-    UI2 --> COGNITO
-    UI3 --> COGNITO
-    
-    COGNITO --> APIGW[AWS API Gateway<br/>With Cognito Authorizer]
-    
-    APIGW --> ALB[Application Load Balancer]
-    
-    ALB --> TRAC[Trac Container<br/>Python 2.7<br/>Port 8080]
-    ALB --> LEARN[Learning Service<br/>Python 3.11<br/>Port 8000]
-    
-    subgraph "AWS Managed Services"
-        RDS[(AWS RDS PostgreSQL<br/>• Trac Schema<br/>• Learning Schema)]
-        CACHE[(AWS ElastiCache<br/>Redis Cluster)]
-    end
-    
-    subgraph "External Services"
-        NEO[(Neo4j Aura<br/>Vector Search)]
-        LLM[LLM API<br/>OpenAI/Anthropic]
-    end
-    
-    TRAC --> RDS
-    LEARN --> RDS
-    LEARN --> CACHE
-    LEARN --> NEO
-    APIGW --> LLM
-    
-    style COGNITO fill:#ff9900
-    style APIGW fill:#ff9900
-    style RDS fill:#ff9900
-    style CACHE fill:#ff9900
-    style ALB fill:#ff9900
-4. Component Architecture
-4.1 AWS Cognito Configuration
-yamlUserPool:
-  Name: TracLearnUsers
-  Attributes:
-    - email (required, unique)
-    - name (required)
-    - sub (Cognito user ID)
+# PDF to Vector Store Pipeline - Product Requirements Document
+
+## Executive Summary
+
+This document outlines the requirements for a Python-based system that processes uploaded PDF textbooks, converts them to structured text, semantically segments content by chapters, and stores vectorized chunks in Neo4j for intelligent retrieval in the LearnTrac educational platform.
+
+## Project Overview
+
+### Problem Statement
+Educators need to upload textbook PDFs that can be intelligently parsed, chunked, and stored in a vector database for semantic search, content recommendation, and AI-powered learning experiences. Current manual content organization is time-intensive and lacks semantic understanding.
+
+### Solution Overview
+A comprehensive Python pipeline that:
+1. Accepts PDF uploads through a web interface
+2. Extracts and cleans text with intelligent spacing correction
+3. Detects document structure (chapters, sections, subsections)
+4. Filters content to exclude prefatory material and appendices
+5. Semantically chunks content while preserving educational structure
+6. Generates embeddings and stores in Neo4j vector database
+7. Provides retrieval interface for educational applications
+
+## Architecture Overview
+
+### System Components
+
+#### 1. PDF Upload Interface
+- Web-based file upload component integrated into Trac wiki
+- Support for PDF files up to 100MB
+- Progress tracking and validation
+- Metadata input (subject, course level, author)
+
+#### 2. PDF Processing Engine
+- **PDFProcessor**: Text extraction with spacing correction
+- **StructureDetector**: Chapter/section identification using regex patterns
+- **ContentFilter**: Removal of prefatory/appendix content
+- **ContentChunker**: Intelligent segmentation preserving educational structure
+
+#### 3. Embedding Pipeline
+- **EmbeddingService**: Vector generation using OpenAI/sentence-transformers
+- **BatchProcessor**: Efficient batch processing with rate limiting
+- **QualityValidator**: Embedding validation and quality checks
+
+#### 4. Neo4j Vector Store
+- **VectorDatabase**: Neo4j integration with vector indexing
+- **MetadataManager**: Rich metadata storage and relationships
+- **QueryInterface**: Semantic search and retrieval capabilities
+
+## Detailed Requirements
+
+### 1. PDF Processing Requirements
+
+#### 1.1 Text Extraction
+- **Primary Library**: PyMuPDF (fitz) for high-quality text extraction
+- **Fallback Options**: pdfplumber for complex layouts, pypdf for simple cases
+- **Text Cleaning**: 
+  - Correct missing spaces between words (common PDF extraction issue)
+  - Normalize whitespace while preserving paragraph structure
+  - Remove page numbers, headers, footers
+  - Handle mathematical content and special characters
+  - Preserve sentence boundaries and formatting cues
+
+#### 1.2 Structure Detection
+- **Chapter Detection Patterns**:
+  ```python
+  chapter_patterns = [
+      r'^(?:Chapter|CHAPTER|Ch\.?)\s*(\d+)(?:\s*[:.\-]\s*(.+))?$',
+      r'^(\d+)\s*[:.\-]\s*(.+)$',
+      r'^Unit\s+(\d+)(?:\s*[:.\-]\s*(.+))?$',
+      r'^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s+Level\s+of\s+Organization)?)$'
+  ]
+  ```
+- **Section Detection**:
+  - Numbered sections (1.1, 1.2, etc.)
+  - Descriptive headings with title case
+  - Confidence scoring for structure quality
+- **Validation**: Minimum 3 chapters detected for processing to continue
+
+#### 1.3 Content Filtering
+- **Prefatory Content Removal**:
+  - Everything before first chapter or "Preface" section
+  - Table of Contents, Copyright pages, Acknowledgments
+  - Author biographies and institutional information
+- **Appendix Removal**:
+  - Content starting with "Appendix" section
+  - Bibliography, Glossary, Index sections
+  - Answer keys and supplementary materials
+
+### 2. Chunking Strategy
+
+#### 2.1 Hybrid Chunking Approach
+Based on analysis of existing TypeScript implementation:
+
+- **Content-Aware Chunking** (when structure detection quality > 0.3):
+  - Respect chapter/section boundaries (never split across structural elements)
+  - Target chunk size: 1000-1500 characters
+  - Minimum chunk size: 300 characters
+  - Overlap: 150 characters within same section only
   
-AppClient:
-  Name: TracLearnWebClient
-  TokenValidity:
-    AccessToken: 1 hour
-    IdToken: 1 hour
-    RefreshToken: 30 days
-  
-IdentityPool:
-  AllowUnauthenticated: false
-  AuthProviders:
-    - Cognito User Pool
-4.2 AWS API Gateway Routes
-yamlRestAPI: TracLearnAPI
-Authorizer: CognitoUserPoolAuthorizer
+- **Fallback Chunking** (poor structure detection):
+  - Sentence-boundary splitting
+  - Fixed-size chunks with word-boundary preservation
+  - Standard overlap: 200 characters
 
-Routes:
-  # Trac Routes
-  - Path: /trac/*
-    Method: ANY
-    Integration: HTTP_PROXY to ALB/trac
-    Authorization: Required
-    
-  # Learning Service Routes  
-  - Path: /api/v1/learning-paths/generate
-    Method: POST
-    Integration: HTTP to ALB/learning-service
-    Authorization: Required
-    
-  - Path: /api/v1/learning-paths/create
-    Method: POST
-    Integration: HTTP to ALB/learning-service
-    Authorization: Required
-    
-  - Path: /api/v1/progress/{ticket_id}/submit-answer
-    Method: PUT
-    Integration: HTTP to ALB/learning-service
-    Authorization: Required
-    
-  # LLM Integration
-  - Path: /api/v1/llm/*
-    Method: POST
-    Integration: Lambda to LLM services
-    Authorization: Required
-    RateLimit: 100 requests/minute per user
-4.3 Trac Container Architecture
-trac/
-├── Dockerfile
-├── requirements.txt          # Python 2.7 dependencies
-├── plugins/
-│   ├── learning_auth.py      # Cognito integration
-│   ├── learning_macros.py    # Wiki macros
-│   ├── learning_ticket.py    # Custom ticket display
-│   ├── learning_graph.py     # GraphViz generation
-│   └── learning_api.py       # API Gateway client
-├── templates/
-│   ├── learning_path.html    
-│   ├── learning_ticket.html  
-│   └── knowledge_graph.html  
-└── static/
-    ├── js/
-    │   ├── cognito-auth.js   # Cognito SDK integration
-    │   └── api-client.js     # API Gateway requests
-    └── css/
-        └── learning.css
-4.3.1 Cognito Authentication Plugin
-python# plugins/learning_auth.py
-from trac.core import Component, implements
-from trac.web.api import IAuthenticator, IRequestHandler
-import jwt
-import requests
+#### 2.2 Educational Content Preservation
+- **Mathematical Content**: Preserve formulas and equations as complete units
+- **Definitions**: Keep definition + explanation together
+- **Examples**: Maintain example problems with solutions
+- **Exercise Sets**: Group related problems appropriately
 
-class CognitoAuthenticator(Component):
-    """AWS Cognito authentication for Trac."""
-    
-    implements(IAuthenticator, IRequestHandler)
-    
-    def authenticate(self, req):
-        """Validate Cognito JWT token."""
-        auth_header = req.get_header('Authorization')
-        if not auth_header or not auth_header.startswith('Bearer '):
-            return None
-            
-        token = auth_header[7:]  # Remove 'Bearer ' prefix
-        
-        try:
-            # Verify JWT with Cognito public keys
-            claims = self._verify_cognito_token(token)
-            
-            # Create/update Trac session
-            req.session['cognito_sub'] = claims['sub']
-            req.session['email'] = claims['email']
-            req.session['name'] = claims['name']
-            req.session.save()
-            
-            return claims['email']  # Return username
-            
-        except Exception as e:
-            self.log.error("Cognito auth failed: %s", e)
-            return None
-    
-    def _verify_cognito_token(self, token):
-        """Verify JWT token with Cognito."""
-        # Get Cognito JWKS
-        region = self.config.get('cognito', 'region')
-        user_pool_id = self.config.get('cognito', 'user_pool_id')
-        
-        jwks_url = f"https://cognito-idp.{region}.amazonaws.com/{user_pool_id}/.well-known/jwks.json"
-        jwks = requests.get(jwks_url).json()
-        
-        # Verify token
-        return jwt.decode(
-            token,
-            jwks,
-            algorithms=['RS256'],
-            audience=self.config.get('cognito', 'client_id')
-        )
-4.3.2 API Gateway Client
-python# plugins/learning_api.py
-import requests
-from aws_requests_auth.aws_auth import AWSRequestsAuth
-
-class APIGatewayClient:
-    """Client for AWS API Gateway requests."""
-    
-    def __init__(self, env):
-        self.api_url = env.config.get('aws', 'api_gateway_url')
-        self.region = env.config.get('aws', 'region')
-    
-    def call_learning_service(self, endpoint, method='GET', data=None, token=None):
-        """Make authenticated request to Learning Service via API Gateway."""
-        
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {token}'
-        }
-        
-        url = f"{self.api_url}{endpoint}"
-        
-        response = requests.request(
-            method=method,
-            url=url,
-            headers=headers,
-            json=data
-        )
-        
-        response.raise_for_status()
-        return response.json()
-4.4 Learning Service Architecture
-learning-service/
-├── Dockerfile
-├── requirements.txt          # Python 3.11 dependencies
-├── app/
-│   ├── main.py              # FastAPI application
-│   ├── auth/
-│   │   └── cognito.py       # Token validation
-│   ├── api/
-│   │   ├── learning_paths.py
-│   │   └── progress.py
-│   ├── core/
-│   │   ├── neo4j_client.py  # Neo4j Aura connection
-│   │   ├── rds_client.py    # RDS operations
-│   │   ├── cache_client.py  # ElastiCache operations
-│   │   └── api_gateway.py   # Outbound API calls
-│   └── models/
-│       └── schemas.py
-└── alembic/
-    └── versions/            # RDS schema migrations
-4.4.1 FastAPI Application with Cognito
-python# app/main.py
-from fastapi import FastAPI, Depends, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from app.auth.cognito import verify_cognito_token
-import boto3
-
-app = FastAPI(title="TracLearn Learning Service")
-security = HTTPBearer()
-
-# AWS Clients
-rds_client = boto3.client('rds-data')
-elasticache_client = boto3.client('elasticache')
-
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Validate Cognito token and return user claims."""
-    token = credentials.credentials
-    
-    try:
-        claims = await verify_cognito_token(token)
-        return claims
-    except Exception as e:
-        raise HTTPException(status_code=401, detail="Invalid authentication")
-
-@app.get("/health")
-async def health_check():
-    """Health check endpoint for ALB."""
-    return {"status": "healthy", "service": "learning-service"}
-
-@app.post("/api/v1/learning-paths/generate")
-async def generate_learning_path(
-    request: LearningPathRequest,
-    user = Depends(get_current_user)
-):
-    """Generate learning path with Cognito authentication."""
-    # User ID from Cognito token
-    user_id = user['sub']
-    
-    # Implementation continues...
-4.4.2 RDS Schema Initialization
-python# alembic/versions/001_initial_trac_schema.py
-"""Initialize Trac schema in RDS PostgreSQL"""
-
-def upgrade():
-    # Create Trac tables
-    op.create_table('ticket',
-        sa.Column('id', sa.Integer, primary_key=True),
-        sa.Column('type', sa.Text),
-        sa.Column('time', sa.Integer),
-        sa.Column('changetime', sa.Integer),
-        sa.Column('component', sa.Text),
-        sa.Column('severity', sa.Text),
-        sa.Column('priority', sa.Text),
-        sa.Column('owner', sa.Text),
-        sa.Column('reporter', sa.Text),
-        sa.Column('cc', sa.Text),
-        sa.Column('version', sa.Text),
-        sa.Column('milestone', sa.Text),
-        sa.Column('status', sa.Text),
-        sa.Column('resolution', sa.Text),
-        sa.Column('summary', sa.Text),
-        sa.Column('description', sa.Text),
-        sa.Column('keywords', sa.Text)
-    )
-    
-    op.create_table('ticket_custom',
-        sa.Column('ticket', sa.Integer, sa.ForeignKey('ticket.id')),
-        sa.Column('name', sa.Text),
-        sa.Column('value', sa.Text),
-        sa.PrimaryKeyConstraint('ticket', 'name')
-    )
-    
-    # Additional Trac tables...
-    
-# alembic/versions/002_learning_schema.py
-"""Create learning schema"""
-
-def upgrade():
-    # Create learning schema
-    op.execute('CREATE SCHEMA IF NOT EXISTS learning')
-    
-    # Learning tables
-    op.create_table('paths',
-        sa.Column('id', sa.UUID, primary_key=True),
-        sa.Column('title', sa.String(255)),
-        sa.Column('query_text', sa.Text),
-        sa.Column('cognito_user_id', sa.String(100)),
-        sa.Column('created_at', sa.DateTime),
-        schema='learning'
-    )
-    
-    # Additional learning tables...
-4.5 AWS Service Integration
-4.5.1 Neo4j Aura Connection
-python# app/core/neo4j_client.py
-from neo4j import AsyncGraphDatabase
-import os
-
-class Neo4jAuraClient:
-    def __init__(self):
-        self.driver = AsyncGraphDatabase.driver(
-            os.environ['NEO4J_URI'],
-            auth=(os.environ['NEO4J_USER'], os.environ['NEO4J_PASSWORD'])
-        )
-    
-    async def vector_search(self, embedding, min_score=0.65, limit=20):
-        """Search Neo4j Aura for similar chunks."""
-        async with self.driver.session() as session:
-            result = await session.run("""
-                MATCH (c:Chunk)
-                WITH c, gds.similarity.cosine(c.embedding, $embedding) AS score
-                WHERE score >= $min_score
-                RETURN c.id, c.content, c.subject, c.concept,
-                       c.has_prerequisite, c.prerequisite_for, score
-                ORDER BY score DESC
-                LIMIT $limit
-            """, embedding=embedding, min_score=min_score, limit=limit)
-            
-            return [record.data() async for record in result]
-4.5.2 ElastiCache Integration
-python# app/core/cache_client.py
-import redis
-import json
-from typing import Optional
-
-class ElastiCacheClient:
-    def __init__(self):
-        self.redis = redis.Redis(
-            host=os.environ['ELASTICACHE_ENDPOINT'],
-            port=6379,
-            decode_responses=True
-        )
-    
-    async def get_cached_search(self, query: str, user_id: str) -> Optional[dict]:
-        """Get cached search results."""
-        key = f"search:{query}:{user_id}"
-        result = self.redis.get(key)
-        return json.loads(result) if result else None
-    
-    async def cache_search_results(self, query: str, user_id: str, results: dict, ttl=3600):
-        """Cache search results for 1 hour."""
-        key = f"search:{query}:{user_id}"
-        self.redis.setex(key, ttl, json.dumps(results))
-4.6 Database Schema (RDS PostgreSQL)
-sql-- Standard Trac schema tables (created by migration)
--- ... (all standard Trac tables)
-
--- Learning schema
-CREATE SCHEMA IF NOT EXISTS learning;
-
--- Learning paths with Cognito user association
-CREATE TABLE learning.paths (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    title VARCHAR(255) NOT NULL,
-    query_text TEXT NOT NULL,
-    cognito_user_id VARCHAR(100) NOT NULL,  -- Cognito sub
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    total_chunks INTEGER DEFAULT 0,
-    question_difficulty INTEGER DEFAULT 3
-);
-
--- User progress linked to Cognito ID
-CREATE TABLE learning.progress (
-    cognito_user_id VARCHAR(100) NOT NULL,  -- Cognito sub
-    ticket_id INTEGER REFERENCES public.ticket(id),
-    status VARCHAR(20) DEFAULT 'not_started',
-    started_at TIMESTAMP,
-    last_accessed TIMESTAMP,
-    completed_at TIMESTAMP,
-    time_spent_minutes INTEGER DEFAULT 0,
-    notes TEXT,
-    last_answer TEXT,
-    answer_score FLOAT,
-    answer_feedback TEXT,
-    PRIMARY KEY (cognito_user_id, ticket_id)
-);
-
--- Indexes for performance
-CREATE INDEX idx_paths_user ON learning.paths(cognito_user_id);
-CREATE INDEX idx_progress_user ON learning.progress(cognito_user_id);
-CREATE INDEX idx_progress_status ON learning.progress(status);
-5. Deployment Architecture
-5.1 AWS Infrastructure
-yaml# Infrastructure components (managed by Terraform)
-Resources:
-  # Networking
-  VPC:
-    Type: AWS::EC2::VPC
-    CidrBlock: 10.0.0.0/16
-    
-  # Container hosting
-  ECS:
-    Cluster: TracLearnCluster
-    Services:
-      - TracService (Trac container)
-      - LearningService (Learning API)
-    
-  # Load balancing
-  ALB:
-    Type: Application
-    Listeners:
-      - Port: 443
-        Protocol: HTTPS
-        Certificate: ACM
-    TargetGroups:
-      - Name: trac-targets
-        Port: 8080
-      - Name: learning-targets
-        Port: 8000
-        
-  # API Gateway
-  APIGateway:
-    Type: REST
-    Authorizers:
-      - Type: COGNITO_USER_POOLS
-        UserPool: TracLearnUsers
-    
-  # Data stores
-  RDS:
-    Engine: postgres
-    Version: "15"
-    MultiAZ: true (production)
-    BackupRetention: 30 days
-    
-  ElastiCache:
-    Engine: redis
-    Version: "7.0"
-    NodeType: cache.r6g.large
-    ClusterMode: enabled
-5.2 Container Deployment
-yaml# docker-compose.yml for local development
-version: '3.8'
-
-services:
-  trac:
-    build: ./trac
-    environment:
-      - TRAC_ENV=/var/trac/myproject
-      - DATABASE_URL=postgresql://user:pass@localhost/trac
-      - API_GATEWAY_URL=http://localhost:4566/restapis/local/
-      - COGNITO_REGION=us-east-1
-      - COGNITO_USER_POOL_ID=local_pool
-    ports:
-      - "8080:8080"
-      
-  learning-service:
-    build: ./learning-service
-    environment:
-      - DATABASE_URL=postgresql://user:pass@localhost/trac
-      - NEO4J_URI=neo4j+s://xxxxx.databases.neo4j.io
-      - ELASTICACHE_ENDPOINT=localhost:6379
-      - COGNITO_REGION=us-east-1
-    ports:
-      - "8000:8000"
-      
-  # Local services for development
-  postgres:
-    image: postgres:15
-    environment:
-      - POSTGRES_DB=trac
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=pass
-      
-  redis:
-    image: redis:7-alpine
-    
-  localstack:
-    image: localstack/localstack
-    environment:
-      - SERVICES=apigateway,cognito
-6. Security Architecture
-6.1 Authentication Flow
-mermaidsequenceDiagram
-    participant User
-    participant Browser
-    participant Cognito
-    participant APIGateway
-    participant Trac
-    participant Learning
-    
-    User->>Browser: Access TracLearn
-    Browser->>Cognito: Login request
-    Cognito->>Browser: JWT tokens
-    Browser->>APIGateway: Request + JWT
-    APIGateway->>APIGateway: Validate JWT
-    APIGateway->>Trac: Forward request
-    Trac->>Learning: API call via Gateway
-    Learning->>APIGateway: Response
-    APIGateway->>Browser: Final response
-6.2 Security Layers
-
-Network Security
-
-VPC with private subnets
-Security groups limiting access
-NACLs for additional protection
-
-
-Authentication
-
-AWS Cognito User Pools
-JWT token validation
-Token refresh handling
-
-
-Authorization
-
-API Gateway authorizers
-User context in all requests
-Row-level security in RDS
-
-
-Data Security
-
-RDS encryption at rest
-TLS for all connections
-ElastiCache encryption
-Secrets Manager for credentials
-
-
-
-7. Monitoring and Observability
-7.1 CloudWatch Integration
-python# Structured logging
-import json
-import logging
-from aws_lambda_powertools import Logger
-
-logger = Logger(service="learning-service")
-
-@logger.inject_lambda_context
-def handle_request(event, context):
-    logger.info("Processing learning path generation",
-        user_id=event['requestContext']['authorizer']['claims']['sub'],
-        query=event['body']['query']
-    )
-7.2 Key Metrics
-
-API Gateway: Request count, latency, 4XX/5XX errors
-ECS: CPU/memory utilization, task health
-RDS: Connection count, query performance, storage
-ElastiCache: Hit rate, evictions, memory usage
-Neo4j Aura: Query latency (custom metrics)
-
-8. Error Handling and Resilience
-8.1 Circuit Breakers
-pythonfrom circuitbreaker import circuit
-
-@circuit(failure_threshold=5, recovery_timeout=60)
-async def call_neo4j_aura(query):
-    """Circuit breaker for Neo4j Aura calls."""
-    try:
-        return await neo4j_client.vector_search(query)
-    except Exception as e:
-        logger.error("Neo4j Aura call failed", error=str(e))
-        raise
-8.2 Graceful Degradation
-
-Cache fallback when Neo4j Aura unavailable
-Cached responses from ElastiCache
-Static error pages via CloudFront
-Queue requests during outages
-
-9. Performance Optimization
-9.1 Caching Strategy
-Cache Layers:
-1. CloudFront: Static assets (1 hour)
-2. API Gateway: Response caching (5 minutes)
-3. ElastiCache: Search results (1 hour), progress (15 min)
-4. Application: In-memory caching for hot data
-9.2 Database Optimization
-
-RDS Performance Insights enabled
-Read replicas for query scaling
-Connection pooling in applications
-Prepared statements for common queries
-
-10. Operational Procedures
-10.1 Deployment Process
-
-Build containers and push to ECR
-Update ECS task definitions
-Blue-green deployment via ALB
-Run database migrations
-Update API Gateway stages
-Invalidate CloudFront cache
-
-10.2 Backup and Recovery
-
-RDS automated backups (30 days)
-ElastiCache snapshots (daily)
-Neo4j Aura managed backups
-Infrastructure as Code in Git
-
-# Data Flow Diagram - Question-Based Learning MVP for Trac 1.4.4
-
-## 1. Overview
-
-This document illustrates the data flows for the question-based learning system using Neo4j vector search for content discovery and LLM evaluation for progress tracking.
-
-## 2. High-Level MVP Data Flow
-
-```mermaid
-graph LR
-    UI[User Query] --> WM[Wiki Macro]
-    WM --> LS[Learning Service]
-    LS --> LLM1[LLM: Generate Sentences]
-    LLM1 --> NEO[Neo4j: Vector Search]
-    NEO --> CACHE[Redis: Cache Results]
-    CACHE --> PREVIEW[Show Chunks]
-    PREVIEW --> CREATE[Create Tickets]
-    CREATE --> QUESTIONS[Generate Questions]
-    QUESTIONS --> DB[PostgreSQL]
-    DB --> DISPLAY[Show Questions]
-    DISPLAY --> ANSWER[Student Answers]
-    ANSWER --> LLM2[LLM: Evaluate]
-    LLM2 --> PROGRESS[Update Progress]
-    PROGRESS --> GRAPH[Update Graph]
+#### 2.3 Chunk Metadata
+```python
+@dataclass
+class ChunkMetadata:
+    book_id: str
+    title: str
+    subject: str
+    chapter: Optional[str]
+    section: Optional[str]
+    chunk_id: str
+    chunk_index: int
+    total_chunks: int
+    content_type: Literal['text', 'formula', 'definition', 'example', 'exercise']
+    difficulty: Optional[Literal['beginner', 'intermediate', 'advanced']]
+    keywords: List[str]
+    page_numbers: List[int]
+    confidence_score: float
 ```
 
-## 3. Core Feature Data Flows
+### 3. Embedding Generation
 
-### 3.1 Learning Path Generation Flow
+#### 3.1 Embedding Models
+- **Primary**: OpenAI text-embedding-3-small (1536 dimensions) - cost-effective
+- **Alternative**: sentence-transformers/all-MiniLM-L6-v2 (384 dimensions) - local processing
+- **Specialized**: Models fine-tuned for educational content if available
 
-```mermaid
-flowchart TD
-    A[User enters query in Wiki page] --> B[LearningPath macro triggered]
-    
-    B --> C[JavaScript sends to Learning Service]
-    C --> D[POST /api/v1/learning-paths/generate<br/>{query: 'I want to learn machine learning',<br/>user_id: 'john.doe'}]
-    
-    D --> E[Check Redis cache]
-    E --> F{Cached?}
-    F -->|Yes| G[Return cached chunks]
-    F -->|No| H[Generate 5 academic sentences via LLM]
-    
-    H --> I[Example sentences:<br/>1. Machine learning uses statistical models<br/>2. Supervised learning requires labeled data<br/>3. Neural networks process information in layers<br/>4. Training involves optimizing parameters<br/>5. Validation prevents overfitting]
-    
-    I --> J[Create embeddings for each sentence]
-    J --> K[Average embeddings into single vector]
-    
-    K --> L[Neo4j vector search]
-    L --> M[MATCH (c:Chunk)<br/>WITH c, gds.similarity.cosine(c.embedding, $vector) AS score<br/>WHERE score >= 0.65<br/>RETURN c LIMIT 20]
-    
-    M --> N[Return chunks with metadata:<br/>- id, content, subject, concept<br/>- has_prerequisite, prerequisite_for<br/>- relevance_score]
-    
-    N --> O[Cache in Redis with 1hr TTL]
-    O --> P[Return to Trac for display]
-    
-    P --> Q[Display chunk preview:<br/>✓ 20 concepts found<br/>✓ Grouped by subject<br/>✓ Show relevance scores]
+#### 3.2 Batch Processing
+- **Batch Size**: 100 chunks per API request (OpenAI limit: 2048)
+- **Rate Limiting**: 3 requests/second to avoid API limits
+- **Error Handling**: Individual chunk retry on batch failures
+- **Progress Tracking**: Real-time progress updates for UI
+
+#### 3.3 Quality Assurance
+- **Validation**: Ensure embeddings have correct dimensions
+- **Similarity Checks**: Flag suspiciously similar chunks (potential duplicates)
+- **Distribution Analysis**: Verify embedding diversity
+
+### 4. Neo4j Integration
+
+#### 4.1 Graph Schema
+```cypher
+// Textbook nodes
+CREATE (t:Textbook {
+    id: string,
+    title: string,
+    subject: string,
+    author: string,
+    upload_date: datetime,
+    total_chunks: integer,
+    processing_status: string
+})
+
+// Chapter nodes
+CREATE (c:Chapter {
+    id: string,
+    title: string,
+    number: string,
+    textbook_id: string,
+    chunk_count: integer
+})
+
+// Section nodes  
+CREATE (s:Section {
+    id: string,  
+    title: string,
+    number: string,
+    chapter_id: string,
+    level: integer
+})
+
+// Chunk nodes with vector embeddings
+CREATE (ch:Chunk {
+    id: string,
+    text: string,
+    content_type: string,
+    keywords: [string],
+    chunk_index: integer,
+    embedding: [float]  // Vector embedding
+})
+
+// Relationships
+CREATE (t)-[:HAS_CHAPTER]->(c)
+CREATE (c)-[:HAS_SECTION]->(s)  
+CREATE (s)-[:CONTAINS_CHUNK]->(ch)
+CREATE (c)-[:CONTAINS_CHUNK]->(ch)
+CREATE (t)-[:CONTAINS_CHUNK]->(ch)
 ```
 
-### 3.2 Ticket Creation with Questions Flow
-
-```mermaid
-flowchart TD
-    A[User clicks Create Learning Path] --> B[POST /api/v1/learning-paths/create]
-    
-    B --> C[Retrieve chunks from Redis cache]
-    C --> D[For each chunk]
-    
-    D --> E[Generate question via LLM]
-    E --> F[Prompt: Create a question that tests understanding of:<br/>Concept: {chunk.concept}<br/>Content: {chunk.content}<br/>Difficulty: {1-5}<br/>Context: {original_query}]
-    
-    F --> G[LLM returns:<br/>- Question text<br/>- Expected answer]
-    
-    G --> H[Create ticket in PostgreSQL]
-    H --> I[INSERT INTO ticket:<br/>type='learning_concept'<br/>summary=chunk.concept<br/>description=chunk.content<br/>milestone=chunk.subject<br/>status='new']
-    
-    I --> J[Store learning fields in ticket_custom:<br/>- question<br/>- question_difficulty<br/>- question_context<br/>- expected_answer<br/>- has_prerequisite<br/>- prerequisite_for]
-    
-    J --> K[Create learning.concept_metadata:<br/>ticket_id, path_id, chunk_id,<br/>relevance_score, question_generated]
-    
-    K --> L[Create prerequisites if has_prerequisite exists]
-    L --> M[INSERT INTO learning.prerequisites<br/>(concept_ticket_id, prerequisite_ticket_id)]
-    
-    M --> N[Return created ticket IDs]
-    N --> O[Redirect to roadmap view]
+#### 4.2 Vector Indexing
+```cypher
+// Create vector index for semantic search
+CREATE VECTOR INDEX chunk_embeddings
+FOR (c:Chunk) ON (c.embedding)
+OPTIONS {indexConfig: {
+    `vector.dimensions`: 1536,
+    `vector.similarity_function`: 'cosine'
+}}
 ```
 
-### 3.3 Question Display and Answer Flow
+#### 4.3 Query Capabilities
+- **Semantic Search**: Find similar chunks by vector similarity
+- **Structured Queries**: Search within specific chapters/sections  
+- **Hybrid Search**: Combine semantic + keyword + structural filters
+- **Relationship Traversal**: Navigate from chunks to chapters to textbooks
 
-```mermaid
-flowchart TD
-    A[User opens learning ticket] --> B[Trac loads ticket data]
-    
-    B --> C[Check ticket type = 'learning_concept']
-    C --> D[Load custom fields from ticket_custom]
-    
-    D --> E[Display question prominently:<br/>Question: {question}<br/>Difficulty: {difficulty}/5<br/>Context: {question_context}]
-    
-    E --> F[Check user progress]
-    F --> G[SELECT * FROM learning.progress<br/>WHERE user_id = $1 AND ticket_id = $2]
-    
-    G --> H{Previous attempt?}
-    H -->|Yes| I[Show previous answer:<br/>Your answer: {last_answer}<br/>Score: {answer_score}%<br/>Feedback: {answer_feedback}]
-    H -->|No| J[Show empty answer textarea]
-    
-    I --> K[Answer submission area]
-    J --> K
-    
-    K --> L[Student types answer]
-    L --> M[Click Submit Answer]
-    
-    M --> N[AJAX PUT /api/v1/progress/{ticket_id}/submit-answer<br/>{answer: 'Student response text'}]
+### 5. User Interface Requirements
+
+#### 5.1 Upload Interface
+- **File Selection**: Drag-and-drop PDF upload
+- **Metadata Input**:
+  - Subject/Course (dropdown with common options)
+  - Difficulty Level (Beginner/Intermediate/Advanced)
+  - Author (optional, extracted from PDF if available)
+  - Description (optional)
+- **Processing Options**:
+  - Custom chapter pattern (for non-standard textbooks)
+  - Embedding model selection
+  - Chunk size preferences
+
+#### 5.2 Progress Tracking
+- **Real-time Updates**: WebSocket or SSE for live progress
+- **Stage Indicators**:
+  - PDF Upload (0-10%)
+  - Text Extraction (10-30%)
+  - Structure Detection (30-40%)
+  - Content Filtering (40-50%)
+  - Chunking (50-70%)
+  - Embedding Generation (70-90%)
+  - Database Storage (90-100%)
+- **Error Reporting**: Clear error messages with retry options
+
+#### 5.3 Management Dashboard
+- **Textbook Library**: View all processed textbooks
+- **Processing Status**: Monitor active/queued processing jobs
+- **Quality Metrics**: Structure detection confidence, chunk statistics
+- **Search Interface**: Test semantic search capabilities
+
+### 6. Performance Requirements
+
+#### 6.1 Processing Performance
+- **Small PDF** (<5MB, <100 pages): Complete processing in <5 minutes
+- **Medium PDF** (5-20MB, 100-500 pages): Complete processing in <20 minutes  
+- **Large PDF** (20-100MB, 500+ pages): Complete processing in <60 minutes
+- **Memory Usage**: Process 100MB PDFs with <4GB RAM
+
+#### 6.2 Storage Efficiency
+- **Chunk Size Optimization**: Balance retrieval quality vs. storage cost
+- **Deduplication**: Identify and merge duplicate chunks across textbooks
+- **Compression**: Consider embedding compression for storage optimization
+
+#### 6.3 Query Performance
+- **Semantic Search**: <500ms for similarity queries
+- **Structured Queries**: <200ms for metadata-based searches
+- **Batch Retrieval**: Handle 100+ concurrent chunk retrievals
+
+### 7. Integration Requirements
+
+#### 7.1 Trac Wiki Integration
+- **Plugin Architecture**: Implement as Trac plugin using IRequestHandler
+- **Authentication**: Use existing Trac authentication system
+- **Permissions**: New permission level "TEXTBOOK_UPLOAD"
+- **UI Integration**: Add to existing Trac navigation and styling
+
+#### 7.2 API Endpoints
+```python
+# RESTful API for textbook management
+POST   /api/textbooks/upload          # Upload and process PDF
+GET    /api/textbooks/{id}            # Get textbook metadata
+GET    /api/textbooks/{id}/chunks     # Get textbook chunks
+POST   /api/textbooks/search          # Semantic search across textbooks
+DELETE /api/textbooks/{id}            # Remove textbook and chunks
+GET    /api/processing/{job_id}       # Check processing status
 ```
 
-### 3.4 Answer Evaluation Flow
-
-```mermaid
-flowchart TD
-    A[Learning Service receives answer] --> B[Load question data from DB]
-    
-    B --> C[SELECT question, expected_answer,<br/>question_context, question_difficulty<br/>FROM ticket_custom WHERE ticket = $1]
-    
-    C --> D[Send to LLM for evaluation]
-    D --> E[Prompt: Evaluate this answer:<br/>Question: {question}<br/>Student Answer: {student_answer}<br/>Expected Answer: {expected_answer}<br/>Context: {question_context}<br/>Return score 0-1 and feedback]
-    
-    E --> F[LLM returns:<br/>score: 0.85<br/>feedback: 'Good understanding...<br/>Consider also mentioning...']
-    
-    F --> G{Score >= 0.8?}
-    G -->|Yes| H[Status = 'mastered']
-    G -->|No| I[Status = 'studying']
-    
-    H --> J[Update ticket: status='closed', resolution='fixed']
-    I --> K[Keep ticket status='assigned']
-    
-    J --> L[Update learning.progress]
-    K --> L
-    
-    L --> M[INSERT/UPDATE learning.progress:<br/>status, last_answer, answer_score,<br/>answer_feedback, last_accessed]
-    
-    M --> N[Return evaluation to user]
-    N --> O[Display score and feedback]
-    
-    O --> P{Passed?}
-    P -->|Yes| Q[Show success message<br/>Enable next concept]
-    P -->|No| R[Show try again option]
-```
-
-### 3.5 Knowledge Graph Generation Flow
-
-```mermaid
-flowchart TD
-    A[Wiki page with KnowledgeGraph macro] --> B[Parse parameters:<br/>milestone='Machine Learning']
-    
-    B --> C[Generate cache key:<br/>MD5(milestone + user_id)]
-    
-    C --> D{Graph cached?}
-    D -->|Yes| E[Return cached PNG]
-    D -->|No| F[Query database for concepts]
-    
-    F --> G[SELECT t.id, t.summary, t.status,<br/>p.status as learning_status<br/>FROM ticket t<br/>LEFT JOIN learning.progress p<br/>WHERE t.milestone = $1<br/>AND t.type = 'learning_concept']
-    
-    G --> H[Query prerequisites]
-    H --> I[SELECT * FROM learning.prerequisites<br/>WHERE concept_ticket_id IN (...)]
-    
-    I --> J[Build GraphViz DOT structure]
-    J --> K[Create nodes with colors:<br/>Gray: not_started<br/>Orange: studying<br/>Green: mastered (score >= 0.8)]
-    
-    K --> L[Add prerequisite edges]
-    L --> M[Group by milestone subgraphs]
-    
-    M --> N[GraphViz render:<br/>- PNG image<br/>- HTML image map]
-    
-    N --> O[Save to cache directory]
-    O --> P[Return HTML:<br/>img src='/graphs/{hash}.png'<br/>map with clickable areas]
-```
-
-### 3.6 Progress Tracking Data Flow
-
-```mermaid
-flowchart TD
-    A[Answer evaluation completes] --> B{Score >= 0.8?}
-    
-    B -->|Yes| C[Update ticket status to 'closed']
-    B -->|No| D[Keep ticket status 'assigned']
-    
-    C --> E[Update progress: status='mastered']
-    D --> F[Update progress: status='studying']
-    
-    E --> G[Check milestone completion]
-    F --> G
-    
-    G --> H[SELECT COUNT(*) total,<br/>COUNT(CASE WHEN p.status='mastered') mastered<br/>FROM ticket t<br/>JOIN learning.progress p<br/>WHERE t.milestone = $1]
-    
-    H --> I[Calculate completion percentage]
-    I --> J[Update roadmap view]
-    
-    J --> K[Regenerate knowledge graph]
-    K --> L[Clear graph cache for user]
-    
-    L --> M[Next graph request shows updated colors]
-```
-
-## 4. Database Operations Flow
-
-### 4.1 Cross-System Data Flow
-
-```mermaid
-flowchart LR
-    subgraph "Neo4j"
-        CHUNKS[Academic Chunks<br/>with embeddings]
-    end
-    
-    subgraph "Redis"
-        CACHE[Search Results<br/>1hr TTL]
-    end
-    
-    subgraph "PostgreSQL"
-        subgraph "public schema"
-            TICKET[ticket table]
-            CUSTOM[ticket_custom]
-            MILESTONE[milestone]
-        end
-        
-        subgraph "learning schema"
-            PATHS[paths]
-            META[concept_metadata]
-            PREREQ[prerequisites]
-            PROG[progress]
-        end
-    end
-    
-    CHUNKS -->|Vector Search| CACHE
-    CACHE -->|Chunk Data| TICKET
-    TICKET <--> CUSTOM
-    TICKET --> META
-    TICKET --> PREREQ
-    TICKET --> PROG
-    TICKET --> MILESTONE
-```
-
-### 4.2 Ticket Creation Transaction
-
-```mermaid
-flowchart TD
-    A[BEGIN TRANSACTION] --> B[INSERT INTO ticket<br/>RETURNING id]
-    
-    B --> C[ticket_id = 123]
-    C --> D[INSERT INTO ticket_custom<br/>Multiple rows for learning fields]
-    
-    D --> E[INSERT INTO learning.concept_metadata<br/>Link to chunk and path]
-    
-    E --> F[INSERT INTO learning.prerequisites<br/>If has_prerequisite exists]
-    
-    F --> G{All successful?}
-    G -->|Yes| H[COMMIT]
-    G -->|No| I[ROLLBACK]
-    
-    H --> J[Return ticket IDs]
-    I --> K[Return error]
-```
-
-## 5. API Communication Patterns
-
-### 5.1 Trac to Learning Service Flow
-
-```mermaid
-sequenceDiagram
-    participant Browser
-    participant Trac
-    participant Learning
-    participant Neo4j
-    participant Redis
-    
-    Browser->>Trac: Submit learning query
-    Trac->>Learning: POST /generate
-    Learning->>Redis: Check cache
-    
-    alt Not cached
-        Learning->>Learning: Generate sentences
-        Learning->>Neo4j: Vector search
-        Neo4j-->>Learning: Return chunks
-        Learning->>Redis: Cache results
-    end
-    
-    Learning-->>Trac: Return chunks
-    Trac-->>Browser: Display preview
-    
-    Browser->>Trac: Confirm creation
-    Trac->>Learning: POST /create
-    Learning->>Learning: Generate questions
-    Learning->>Trac: Create tickets (direct DB)
-    Learning-->>Trac: Return ticket IDs
-    Trac-->>Browser: Redirect to roadmap
-```
-
-### 5.2 Answer Evaluation Flow
-
-```mermaid
-sequenceDiagram
-    participant Browser
-    participant Trac
-    participant Learning
-    participant LLM
-    participant DB
-    
-    Browser->>Trac: Submit answer
-    Trac->>Learning: PUT /submit-answer
-    Learning->>DB: Get question data
-    DB-->>Learning: Question + expected answer
-    
-    Learning->>LLM: Evaluate answer
-    LLM-->>Learning: Score + feedback
-    
-    Learning->>DB: Update progress
-    
-    alt Score >= 0.8
-        Learning->>DB: Close ticket
-    end
-    
-    Learning-->>Trac: Return evaluation
-    Trac-->>Browser: Show results
-```
-
-## 6. Caching Strategy Flow
-
-### 6.1 Redis Cache Usage
-
-```mermaid
-flowchart TD
-    A[Learning Query] --> B[Generate cache key:<br/>path:{query}:{user_id}]
-    
-    B --> C{Check Redis}
-    C -->|Hit| D[Return cached chunks<br/>< 50ms]
-    C -->|Miss| E[Neo4j vector search<br/>~2 seconds]
-    
-    E --> F[Store in Redis<br/>TTL: 3600 seconds]
-    F --> G[Return chunks]
-    
-    H[Cache expires after 1 hour] --> I[Next query searches Neo4j again]
-```
-
-### 6.2 Graph Cache Management
-
-```mermaid
-flowchart TD
-    A[Graph request] --> B[Cache key: MD5(milestone+user)]
-    
-    B --> C{PNG exists?}
-    C -->|Yes| D[Check if stale]
-    C -->|No| E[Generate new graph]
-    
-    D --> F{Progress updated?}
-    F -->|Yes| G[Delete cached file]
-    F -->|No| H[Serve cached PNG]
-    
-    G --> E
-    E --> I[GraphViz render]
-    I --> J[Save PNG + map]
-    J --> K[Serve new graph]
-```
-
-## 7. Error Handling Flows
-
-### 7.1 Service Failure Handling
-
-```mermaid
-flowchart TD
-    A[API Request] --> B{Service Check}
-    
-    B -->|Neo4j Down| C[Check Redis cache]
-    C -->|Hit| D[Use cached data]
-    C -->|Miss| E[Show error: Try again later]
-    
-    B -->|LLM Timeout| F[Retry 3x with backoff]
-    F -->|Success| G[Continue flow]
-    F -->|Fail| H[Show error: Generation failed]
-    
-    B -->|DB Error| I[Rollback transaction]
-    I --> J[Log error details]
-    J --> K[Show user-friendly error]
-```
-
-### 7.2 Data Validation Flow
-
-```mermaid
-flowchart TD
-    A[Chunk from Neo4j] --> B{Valid structure?}
-    
-    B -->|No| C[Log missing fields]
-    C --> D[Skip chunk]
-    
-    B -->|Yes| E{Has required fields?}
-    E -->|No| F[Use defaults]
-    E -->|Yes| G[Process chunk]
-    
-    F --> G
-    G --> H{Question generated?}
-    
-    H -->|No| I[Retry generation]
-    I -->|Fail| J[Skip ticket creation]
-    H -->|Yes| K[Create ticket]
-```
-
-## 8. User Interface Data Flows
-
-### 8.1 Wiki Macro Interaction
-
-```mermaid
-flowchart TD
-    A[Page loads] --> B[LearningPath macro renders]
-    
-    B --> C[Display:<br/>- Query textarea<br/>- Generate button<br/>- Loading spinner hidden]
-    
-    C --> D[User types query]
-    D --> E[Click Generate]
-    
-    E --> F[Show spinner]
-    F --> G[AJAX to Learning Service]
-    
-    G --> H[Display chunk preview:<br/>- Concept names<br/>- Subjects<br/>- Relevance scores]
-    
-    H --> I[Show Create button]
-    I --> J[User confirms]
-    
-    J --> K[Create tickets]
-    K --> L[Redirect to roadmap]
-```
-
-### 8.2 Answer Submission UI Flow
-
-```mermaid
-flowchart TD
-    A[Ticket page loads] --> B{Is learning_concept?}
-    
-    B -->|No| C[Show normal ticket]
-    B -->|Yes| D[Show question section]
-    
-    D --> E[Display:<br/>- Question text<br/>- Difficulty level<br/>- Context<br/>- Answer textarea]
-    
-    E --> F{Previous attempt?}
-    F -->|Yes| G[Show:<br/>- Last answer<br/>- Score<br/>- Feedback]
-    F -->|No| H[Empty form]
-    
-    G --> I[Submit new answer]
-    H --> I
-    
-    I --> J[Validate length >= 10]
-    J --> K[Submit via AJAX]
-    
-    K --> L[Show loading]
-    L --> M[Display results]
-    
-    M --> N{Passed?}
-    N -->|Yes| O[Success message<br/>Reload for new status]
-    N -->|No| P[Try again message]
-```
-
-## 9. Performance Optimization Flows
-
-### 9.1 Batch Operations
-
-```mermaid
-flowchart TD
-    A[20 chunks to process] --> B[Group by milestone]
-    
-    B --> C[Prepare batch inserts]
-    C --> D[Single transaction]
-    
-    D --> E[INSERT INTO ticket<br/>VALUES (...) x 20<br/>RETURNING id]
-    
-    E --> F[Map IDs to chunks]
-    F --> G[Batch insert custom fields]
-    
-    G --> H[INSERT INTO ticket_custom<br/>VALUES (...) x 120<br/>(6 fields × 20 tickets)]
-    
-    H --> I[Create prerequisites]
-    I --> J[COMMIT]
-    
-    J --> K[Total time: ~5 seconds]
-```
-
-### 9.2 Query Optimization
-
-```mermaid
-flowchart TD
-    A[Complex progress query] --> B[Use indexed columns]
-    
-    B --> C[Indexes:<br/>- progress(user_id)<br/>- progress(status)<br/>- ticket(type)<br/>- ticket(milestone)]
-    
-    C --> D[Query plan:<br/>1. Filter by user_id<br/>2. Join on indexed ticket_id<br/>3. Filter by type<br/>4. Group by milestone]
-    
-    D -->
-
-     Entity Relationship Diagram - Question-Based Learning MVP for Trac 1.4.4
-1. Overview
-This document shows the entity relationships for the question-based learning MVP deployed on AWS infrastructure. We use AWS RDS PostgreSQL for all persistent data (both Trac and learning schemas), Neo4j Aura for academic content with vector embeddings, and AWS ElastiCache for caching. User authentication is handled by AWS Cognito.
-2. System Data Stores
-2.1 Data Store Architecture
-mermaidgraph TB
-    subgraph "AWS Cognito"
-        COGNITO[User Pool<br/>Authentication & JWT]
-    end
-    
-    subgraph "Neo4j Aura (External)"
-        NEO[Academic Chunks<br/>with Vector Embeddings<br/>Read-Only Access]
-    end
-    
-    subgraph "AWS RDS PostgreSQL"
-        subgraph "public schema"
-            TRAC[Trac Core Tables<br/>Created Fresh]
-        end
-        subgraph "learning schema"
-            LEARN[Learning Tables<br/>Progress & Metadata]
-        end
-    end
-    
-    subgraph "AWS ElastiCache"
-        CACHE[Redis Cluster<br/>Search Results: 1hr<br/>Progress: 15min<br/>Graphs: On-demand]
-    end
-    
-    COGNITO --> TRAC
-    COGNITO --> LEARN
-    NEO --> CACHE
-    CACHE --> LEARN
-    TRAC <--> LEARN
-3. AWS Cognito User Structure
-3.1 Cognito User Attributes
-Cognito User Pool
-=================
-Standard Attributes:
-- sub                    # Unique user ID (UUID)
-- email                  # User email (required, unique)
-- email_verified         # Boolean
-- name                   # Display name (required)
-- updated_at            # Last modified timestamp
-
-Custom Attributes:
-- custom:role           # 'student', 'instructor', 'admin'
-- custom:created_at     # Registration date
-- custom:last_login     # Last authentication
-
-Groups:
-- Students              # Default group
-- Instructors          # Can create content
-- Administrators       # Full access
-4. Neo4j Aura Chunk Structure (External Service)
-4.1 Chunk Node Properties
-Neo4j Chunk Node (Read-Only)
-=============================
-{
-  id: "chunk_12345",              // Unique identifier
-  content: "Text content...",     // 100-500 words of academic content
-  subject: "Machine Learning",    // Broad topic (becomes milestone)
-  concept: "Neural Networks",     // Specific concept
-  has_prerequisite: "Perceptrons", // Previous concept (nullable)
-  prerequisite_for: "Deep Learning", // Next concept (nullable)
-  embedding: [0.1, 0.2, ...],     // 1536-dimension vector
-  created_at: "2024-01-01",       // Timestamp
- source: "textbook_ml_ch5",      // Source reference
- difficulty_level: 3             // 1-5 scale
-}
-
-Vector Index:
-- Name: chunk_embeddings
-- Dimensions: 1536
-- Similarity: cosine
-- Min relevance: 0.65
-5. AWS RDS PostgreSQL Tables
-5.1 Trac Core Tables (public schema)
-mermaiderDiagram
-    ticket {
-        INTEGER id PK "Auto-increment ID"
-        TEXT type "learning_concept"
-        INTEGER time "Creation timestamp"
-        INTEGER changetime "Last modified"
-        TEXT component "Not used"
-        TEXT severity "Not used"
-        TEXT priority "Normal for all"
-        TEXT owner "Cognito sub"
-        TEXT reporter "learning-system"
-        TEXT cc "Not used"
-        TEXT version "Not used"
-        TEXT milestone FK "Subject from chunk"
-        TEXT status "new/assigned/closed"
-        TEXT resolution "fixed when mastered"
-        TEXT summary "Concept from chunk"
-        TEXT description "Content from chunk"
-        TEXT keywords "Not used"
-    }
-    
-    milestone {
-        TEXT name PK "Subject name"
-        INTEGER due "Not used"
-        INTEGER completed "Not used"
-        TEXT description "Subject description"
-    }
-    
-    ticket_custom {
-        INTEGER ticket PK,FK "References ticket"
-        TEXT name PK "Field name"
-        TEXT value "Field value"
-    }
-    
-    session {
-        TEXT sid PK "Session ID"
-        INTEGER authenticated "1 if logged in"
-        INTEGER last_visit "Last activity"
-    }
-    
-    session_attribute {
-        TEXT sid PK,FK "Session ID"
-        TEXT name PK "Attribute name"
-        TEXT value "Attribute value"
-    }
-    
-    ticket ||--o{ ticket_custom : "has fields"
-    ticket }o--|| milestone : "belongs to"
-    session ||--o{ session_attribute : "has attributes"
-5.2 Custom Fields for Learning (ticket_custom)
-sql-- Learning-specific fields stored as rows
-question                 -- Generated question text (100-500 chars)
-question_difficulty      -- Difficulty level (1-5)
-question_context        -- Original learning query
-expected_answer         -- LLM-generated answer (200-1000 chars)
-has_prerequisite        -- Concept that must be learned first
-prerequisite_for        -- Concept that follows this one
-chunk_id               -- Reference to Neo4j chunk
-cognito_user_id        -- User who created the path
-5.3 Learning Schema Tables
-mermaiderDiagram
-    paths {
-        UUID id PK "Path identifier"
-        VARCHAR title "Generated title"
-        TEXT query_text "User's query"
-        VARCHAR cognito_user_id FK "From Cognito sub"
-        TIMESTAMP created_at "Creation time"
-        INTEGER total_chunks "Found in Neo4j"
-        INTEGER question_difficulty "Default 1-5"
-    }
-    
-    concept_metadata {
-        INTEGER ticket_id PK,FK "References ticket.id"
-        UUID path_id FK "References paths.id"
-        VARCHAR chunk_id "Neo4j chunk ID"
-        FLOAT relevance_score "Vector similarity"
-        BOOLEAN question_generated "Always true"
-        TIMESTAMP created_at "Creation time"
-    }
-    
-    prerequisites {
-        INTEGER concept_ticket_id PK,FK "Concept"
-        INTEGER prerequisite_ticket_id PK,FK "Required first"
-        TIMESTAMP created_at "Link creation"
-    }
-    
-    progress {
-        VARCHAR cognito_user_id PK,FK "From Cognito"
-        INTEGER ticket_id PK,FK "Concept ticket"
-        VARCHAR status "not_started/studying/mastered"
-        TIMESTAMP started_at "First attempt"
-        TIMESTAMP last_accessed "Last activity"
-        TIMESTAMP completed_at "When mastered"
-        INTEGER time_spent_minutes "Total time"
-        TEXT notes "User notes"
-        TEXT last_answer "Recent answer"
-        FLOAT answer_score "LLM score 0-1"
-        TEXT answer_feedback "LLM feedback"
-    }
-    
-    cognito_sessions {
-        VARCHAR cognito_sub PK "User ID"
-        VARCHAR access_token "Current token"
-        VARCHAR refresh_token "For renewal"
-        TIMESTAMP token_expires "Access expiry"
-        VARCHAR trac_session_id FK "Links to session.sid"
-        TIMESTAMP last_activity "Last request"
-    }
-    
-    paths ||--o{ concept_metadata : "contains"
-    concept_metadata ||--|| ticket : "describes"
-    prerequisites }o--|| ticket : "concept"
-    prerequisites }o--|| ticket : "prerequisite"
-    progress }o--|| ticket : "tracks"
-    cognito_sessions ||--|| session : "maps to"
-6. Entity Relationships Across Systems
-6.1 Cross-System Data Flow
-mermaidflowchart TD
-    subgraph "AWS Cognito"
-        USER[User Attributes]
-    end
-    
-    subgraph "Neo4j Aura"
-        CHUNK[Chunk Nodes]
-    end
-    
-    subgraph "AWS ElastiCache"
-        SEARCH[Cached Searches]
-        PROG_CACHE[Progress Cache]
-        GRAPH[Graph Cache]
-    end
-    
-    subgraph "AWS RDS - public"
-        TICKET[ticket]
-        CUSTOM[ticket_custom]
-        MILESTONE[milestone]
-        SESSION[session + attributes]
-    end
-    
-    subgraph "AWS RDS - learning"
-        PATH[paths]
-        META[concept_metadata]
-        PREREQ[prerequisites]
-        PROGRESS[progress]
-        COGN_SESS[cognito_sessions]
-    end
-    
-    USER -->|JWT sub| COGN_SESS
-    COGN_SESS -->|session_id| SESSION
-    CHUNK -->|search results| SEARCH
-    SEARCH -->|chunk data| META
-    META -->|ticket_id| TICKET
-    TICKET -->|ticket| CUSTOM
-    TICKET -->|milestone| MILESTONE
-    PREREQ -->|both FKs| TICKET
-    PROGRESS -->|cognito_user_id| USER
-    PROGRESS -->|ticket_id| TICKET
-    PATH -->|cognito_user_id| USER
-    PROGRESS --> PROG_CACHE
-    TICKET --> GRAPH
-6.2 Key Relationships
-Authentication Flow:
-- Cognito User ←→ cognito_sessions ←→ Trac session
-- JWT token 'sub' used as primary user identifier
-
-Data Ownership:
-- paths : concept_metadata = 1:N (one path has many concepts)
-- ticket : concept_metadata = 1:1 (one ticket per concept)
-- cognito_user : paths = 1:N (user creates many paths)
-- cognito_user : progress = 1:N (user has progress on many concepts)
-
-Learning Flow:
-- Neo4j chunks → ElastiCache → RDS tickets
-- ticket : prerequisites = N:M (many-to-many via junction)
-- milestone : ticket = 1:N (subjects contain concepts)
-7. Database Constraints and Indexes
-7.1 Primary Keys and Foreign Keys
-sql-- RDS PostgreSQL Constraints
-
--- Learning schema primary keys
-ALTER TABLE learning.paths 
-    ADD PRIMARY KEY (id);
-
-ALTER TABLE learning.concept_metadata 
-    ADD PRIMARY KEY (ticket_id),
-    ADD FOREIGN KEY (path_id) REFERENCES learning.paths(id),
-    ADD FOREIGN KEY (ticket_id) REFERENCES public.ticket(id);
-
-ALTER TABLE learning.prerequisites 
-    ADD PRIMARY KEY (concept_ticket_id, prerequisite_ticket_id),
-    ADD FOREIGN KEY (concept_ticket_id) REFERENCES public.ticket(id),
-    ADD FOREIGN KEY (prerequisite_ticket_id) REFERENCES public.ticket(id);
-
-ALTER TABLE learning.progress 
-    ADD PRIMARY KEY (cognito_user_id, ticket_id),
-    ADD FOREIGN KEY (ticket_id) REFERENCES public.ticket(id);
-
-ALTER TABLE learning.cognito_sessions
-    ADD PRIMARY KEY (cognito_sub),
-    ADD FOREIGN KEY (trac_session_id) REFERENCES public.session(sid);
-7.2 Check Constraints
-sql-- Data integrity constraints
-ALTER TABLE learning.progress 
-    ADD CONSTRAINT chk_status 
-    CHECK (status IN ('not_started', 'studying', 'mastered'));
-
-ALTER TABLE learning.progress 
-    ADD CONSTRAINT chk_score 
-    CHECK (answer_score >= 0 AND answer_score <= 1);
-
-ALTER TABLE learning.paths 
-    ADD CONSTRAINT chk_difficulty 
-    CHECK (question_difficulty BETWEEN 1 AND 5);
-
-ALTER TABLE learning.prerequisites 
-    ADD CONSTRAINT chk_no_self 
-    CHECK (concept_ticket_id != prerequisite_ticket_id);
-
-ALTER TABLE learning.cognito_sessions
-    ADD CONSTRAINT chk_token_expires
-    CHECK (token_expires > last_activity);
-7.3 Performance Indexes
-sql-- Trac table indexes (standard)
-CREATE INDEX idx_ticket_type ON public.ticket(type);
-CREATE INDEX idx_ticket_milestone ON public.ticket(milestone);
-CREATE INDEX idx_ticket_status ON public.ticket(status);
-CREATE INDEX idx_ticket_owner ON public.ticket(owner);
-CREATE INDEX idx_ticket_custom_name ON public.ticket_custom(name);
-
--- Learning schema indexes
-CREATE INDEX idx_paths_user ON learning.paths(cognito_user_id);
-CREATE INDEX idx_concept_metadata_path ON learning.concept_metadata(path_id);
-CREATE INDEX idx_concept_metadata_chunk ON learning.concept_metadata(chunk_id);
-CREATE INDEX idx_prerequisites_concept ON learning.prerequisites(concept_ticket_id);
-CREATE INDEX idx_prerequisites_prereq ON learning.prerequisites(prerequisite_ticket_id);
-CREATE INDEX idx_progress_user ON learning.progress(cognito_user_id);
-CREATE INDEX idx_progress_status ON learning.progress(status);
-CREATE INDEX idx_progress_score ON learning.progress(answer_score);
-CREATE INDEX idx_cognito_sessions_trac ON learning.cognito_sessions(trac_session_id);
-CREATE INDEX idx_cognito_sessions_expires ON learning.cognito_sessions(token_expires);
-8. ElastiCache Key Structure
-8.1 Cache Key Patterns
-yamlSearch Results:
-  Pattern: "search:{query_hash}:{cognito_sub}"
-  TTL: 3600 seconds (1 hour)
-  Value: JSON array of chunks
-
-User Progress:
-  Pattern: "progress:{cognito_sub}:{ticket_id}"
-  TTL: 900 seconds (15 minutes)
-  Value: JSON with status, score, feedback
-
-Knowledge Graphs:
-  Pattern: "graph:{milestone}:{cognito_sub}"
-  TTL: Until invalidated by progress change
-  Value: Base64 encoded PNG + image map
-
-Session Data:
-  Pattern: "session:{cognito_sub}"
-  TTL: 7200 seconds (2 hours)
-  Value: JSON with preferences, current path
-
-API Responses:
-  Pattern: "api:{endpoint}:{params_hash}:{cognito_sub}"
-  TTL: 300 seconds (5 minutes)
-  Value: Cached API response
-9. Data Volume Estimates
-9.1 Storage Requirements
-yamlPer Learning Path:
-  Neo4j Aura: 
-    - 20 chunks × 2KB = 40KB (already stored)
-  
-  RDS PostgreSQL:
-    - 1 path record: 0.5KB
-    - 20 tickets: 20KB
-    - 120 custom fields (6 per ticket): 24KB
-    - 20 metadata records: 2KB
-    - ~10 prerequisites: 0.5KB
-    Total: ~47KB per path
-
-Per User Progress:
-  - 20 progress records: 10KB
-  - Answer attempts: ~20KB
-  - Session data: 2KB
-  Total: ~32KB per user per path
-
-ElastiCache Usage:
-  - Search cache: 40KB per unique search
-  - Progress cache: 1KB per concept
-  - Graph cache: 100KB per graph
-  - Session cache: 5KB per user
-9.2 Query Performance Targets
-yamlAuthentication:
-  - Cognito JWT validation: <50ms
-  - Session lookup: <10ms
-
-Search Operations:
-  - ElastiCache hit: <10ms
-  - Neo4j Aura vector search: 1-2 seconds
-  - Results caching: <50ms
-
-Database Operations:
-  - Ticket creation batch (20): 2-3 seconds
-  - Progress query (indexed): <50ms
-  - Graph data query: <200ms
-
-API Gateway:
-  - Request routing: <30ms
-  - Authorization: <50ms
-  - Total overhead: <100ms
-10. Data Integrity and Security
-10.1 Security Rules
-yamlRow-Level Security:
-  - Users can only see their own progress
-  - Cognito sub used for all queries
-  - No cross-user data access
-
-API Security:
-  - All requests require valid JWT
-  - User context extracted from token
-  - Database queries parameterized
-
-Data Encryption:
-  - RDS: Encryption at rest (AES-256)
-  - ElastiCache: In-transit encryption
-  - Neo4j Aura: TLS connection
-  - Cognito: Tokens signed with RS256
-10.2 Audit Trail
-sql-- Audit columns on all learning tables
-ALTER TABLE learning.paths ADD COLUMN created_by VARCHAR(100) DEFAULT current_user;
-ALTER TABLE learning.progress ADD COLUMN updated_by VARCHAR(100) DEFAULT current_user;
-ALTER TABLE learning.progress ADD COLUMN update_count INTEGER DEFAULT 0;
-
--- Trigger to track updates
-CREATE OR REPLACE FUNCTION update_audit_fields()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_by = current_user;
-    NEW.update_count = OLD.update_count + 1;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER progress_audit_trigger
-BEFORE UPDATE ON learning.progress
-FOR EACH ROW EXECUTE FUNCTION update_audit_fields();
-11. Views for Application Access
-11.1 User Progress View
-sqlCREATE VIEW learning.user_progress_view AS
-SELECT 
-    p.cognito_user_id,
-    t.id as ticket_id,
-    t.summary as concept,
-    t.milestone as subject,
-    tc_q.value as question,
-    tc_d.value as difficulty,
-    p.status,
-    p.answer_score,
-    p.last_answer,
-    p.answer_feedback,
-    p.time_spent_minutes,
-    p.last_accessed
-FROM learning.progress p
-JOIN public.ticket t ON p.ticket_id = t.id
-LEFT JOIN public.ticket_custom tc_q ON t.id = tc_q.ticket 
-    AND tc_q.name = 'question'
-LEFT JOIN public.ticket_custom tc_d ON t.id = tc_d.ticket 
-    AND tc_d.name = 'question_difficulty'
-WHERE t.type = 'learning_concept';
-
--- Grant access
-GRANT SELECT ON learning.user_progress_view TO application_role;
-11.2 Learning Path Summary View
-sqlCREATE VIEW learning.path_summary_view AS
-SELECT 
-    lp.id as path_id,
-    lp.title as path_title,
-    lp.cognito_user_id,
-    lp.created_at,
-    COUNT(DISTINCT cm.ticket_id) as total_concepts,
-    COUNT(DISTINCT CASE WHEN p.status = 'mastered' THEN p.ticket_id END) as mastered_concepts,
-    COUNT(DISTINCT CASE WHEN p.status = 'studying' THEN p.ticket_id END) as studying_concepts,
-    ROUND(100.0 * COUNT(DISTINCT CASE WHEN p.status = 'mastered' THEN p.ticket_id END) / 
-          NULLIF(COUNT(DISTINCT cm.ticket_id), 0), 2) as completion_percentage
-FROM learning.paths lp
-LEFT JOIN learning.concept_metadata cm ON lp.id = cm.path_id
-LEFT JOIN learning.progress p ON cm.ticket_id = p.ticket_id 
-    AND p.cognito_user_id = lp.cognito_user_id
-GROUP BY lp.id, lp.title, lp.cognito_user_id, lp.created_at;
-12. Migration Scripts
-12.1 Initial Schema Creation
-sql-- Run after Trac schema is created
-CREATE SCHEMA IF NOT EXISTS learning;
-
--- Create all learning tables
--- ... (all CREATE TABLE statements from above)
-
--- Insert default data
-INSERT INTO public.milestone (name, description) VALUES
-    ('Machine Learning Fundamentals', 'Core ML concepts'),
-    ('Deep Learning', 'Neural networks and advanced topics'),
-    ('Data Science Basics', 'Statistics and data analysis');
-
--- Create application role
-CREATE ROLE application_role;
-GRANT USAGE ON SCHEMA learning TO application_role;
-GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA learning TO application_role;
-GRANT USAGE ON ALL SEQUENCES IN SCHEMA learning TO application_role;
-13. AWS-Specific Considerations
-13.1 RDS Configuration
-yamlParameter Group Settings:
-  shared_preload_libraries: 'pg_stat_statements'
-  log_statement: 'all'
-  log_min_duration_statement: 1000  # Log slow queries
-  max_connections: 200
-  
-Performance Insights:
-  Enabled: true
-  Retention: 7 days (free tier)
-  
-Automated Backups:
-  Retention: 7 days (dev), 30 days (prod)
-  Window: 03:00-04:00 UTC
-13.2 ElastiCache Configuration
-yamlRedis Configuration:
-  Cluster Mode: Enabled
-  Node Type: cache.r6g.large
-  Number of Shards: 2
-  Replicas per Shard: 1
-  
-  Parameter Group:
-    maxmemory-policy: allkeys-lru
-    timeout: 300
-    tcp-keepalive: 60
-14. Data Consistency Strategy
-14.1 Eventual Consistency Model
-mermaidflowchart LR
-    A[Write to RDS] --> B[Transaction Commits]
-    B --> C[Invalidate Cache Keys]
-    C --> D[Update ElastiCache]
-    D --> E[Eventual Consistency]
-    
-    F[Read Request] --> G{Cache Hit?}
-    G -->|Yes| H[Return Cached]
-    G -->|No| I[Read from RDS]
-    I --> J[Update Cache]
-    J --> K[Return Fresh Data]
-This entity relationship design provides:
-
-AWS Native: Leverages managed services for reliability
-Secure: Cognito authentication throughout
-Performant: Strategic caching with ElastiCache
-Scalable: RDS with read replicas, ElastiCache clustering
-Maintainable: Clear schema separation and relationships
+#### 7.3 Database Integration
+- **Neo4j Connection**: Use existing Neo4j instance or create dedicated database
+- **Connection Pooling**: Efficient connection management
+- **Transaction Handling**: Atomic operations for data consistency
+- **Backup Integration**: Include in existing backup procedures
+
+### 8. Quality Assurance
+
+#### 8.1 Content Quality Metrics
+- **Structure Detection Confidence**: Minimum 70% for automated processing
+- **Chunk Coherence**: Validate chunks contain complete thoughts/concepts
+- **Embedding Quality**: Verify semantic similarity makes educational sense
+- **Metadata Accuracy**: Cross-validate extracted chapter/section titles
+
+#### 8.2 Testing Strategy
+- **Unit Tests**: Individual component testing (PDF processing, chunking, embedding)
+- **Integration Tests**: End-to-end pipeline testing with sample textbooks
+- **Performance Tests**: Processing time and memory usage validation
+- **Quality Tests**: Semantic search relevance evaluation
+
+#### 8.3 Error Handling
+- **Graceful Degradation**: Fallback strategies for each processing stage
+- **Resume Capability**: Resume interrupted processing jobs
+- **Validation Checkpoints**: Validate data quality at each stage
+- **User Feedback**: Clear error messages with suggested corrections
+
+### 9. Security Requirements
+
+#### 9.1 Upload Security
+- **File Validation**: Verify PDF format and scan for malicious content
+- **Size Limits**: Enforce maximum file size (100MB)
+- **Virus Scanning**: Integrate with antivirus scanning if available
+- **Rate Limiting**: Prevent abuse of upload endpoints
+
+#### 9.2 Data Protection
+- **Access Control**: Respect Trac permissions for textbook access
+- **Data Encryption**: Encrypt sensitive data at rest and in transit
+- **Audit Logging**: Log all upload and processing activities
+- **Privacy Compliance**: Handle educational content according to regulations
+
+### 10. Monitoring and Maintenance
+
+#### 10.1 Operational Monitoring
+- **Processing Metrics**: Success rates, processing times, error frequencies
+- **Resource Usage**: CPU, memory, disk space, API quota consumption
+- **Quality Metrics**: Embedding generation success rates, search relevance
+- **User Activity**: Upload frequency, search patterns, error reports
+
+#### 10.2 Maintenance Procedures
+- **Index Optimization**: Regular Neo4j index maintenance
+- **Embedding Updates**: Procedures for reprocessing with new models
+- **Data Cleanup**: Remove outdated or unused textbook data
+- **Performance Tuning**: Optimize chunk sizes and embedding parameters
+
+## Success Criteria
+
+### Primary Success Metrics
+1. **Processing Accuracy**: 95%+ successful PDF processing rate
+2. **Search Relevance**: 85%+ user satisfaction with semantic search results  
+3. **Performance**: Meet processing time requirements for all PDF sizes
+4. **Reliability**: <1% data loss rate during processing
+5. **User Adoption**: 80%+ of uploaded textbooks successfully integrated into learning workflows
+
+### Secondary Success Metrics
+1. **Cost Efficiency**: Processing cost <$0.10 per textbook
+2. **Storage Optimization**: <50MB average storage per processed textbook
+3. **Query Performance**: 99% of queries complete within performance targets
+4. **System Stability**: 99.9% uptime for processing services
+5. **Educational Impact**: Measurable improvement in content discoverability
+
+## Implementation Timeline
+
+### Phase 1: Core Processing Pipeline (4-6 weeks)
+- PDF processing and text extraction
+- Structure detection and content filtering  
+- Basic chunking implementation
+- Neo4j schema and basic storage
+
+### Phase 2: Embedding and Search (3-4 weeks)
+- Embedding generation with OpenAI integration
+- Vector indexing in Neo4j
+- Basic semantic search capabilities
+- Quality validation and metrics
+
+### Phase 3: User Interface (3-4 weeks)
+- Trac plugin development
+- Upload interface and progress tracking
+- Management dashboard
+- API endpoint implementation
+
+### Phase 4: Optimization and Testing (2-3 weeks)
+- Performance optimization
+- Comprehensive testing
+- Documentation and deployment
+- User training and feedback collection
+
+## Risk Mitigation
+
+### Technical Risks
+- **PDF Format Variations**: Maintain library of test PDFs covering edge cases
+- **Structure Detection Failures**: Implement manual override capabilities
+- **API Rate Limits**: Build in retry logic and alternative embedding models
+- **Neo4j Performance**: Plan for indexing optimization and query tuning
+
+### Operational Risks  
+- **Large File Processing**: Implement chunked upload and processing queues
+- **Concurrent Usage**: Design for multi-user concurrent processing
+- **Storage Growth**: Plan for storage scaling and archival procedures
+- **Integration Issues**: Thorough testing with existing Trac installation
+
+This comprehensive PRD provides the foundation for implementing a robust PDF-to-vector pipeline that will significantly enhance LearnTrac's content management and semantic search capabilities.
