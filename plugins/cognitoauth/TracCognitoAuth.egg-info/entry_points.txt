@@ -1,2 +1,0 @@
-[trac.plugins]
-cognitoauth = cognitoauth.plugin

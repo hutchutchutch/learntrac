@@ -5,7 +5,7 @@ import logging
 import os
 
 from .config import settings
-from .routers import learning, chat, analytics, voice, vector_search, llm, tickets, evaluation
+from .routers import learning, chat, analytics, voice, vector_search, llm, tickets, evaluation, trac
 from .middleware import TimingMiddleware, AuthMiddleware
 from .db.database import db_manager
 from .services.redis_client import redis_cache
@@ -108,6 +108,7 @@ app.include_router(evaluation.router, prefix="/api/learntrac/evaluation", tags=[
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"])
 app.include_router(voice.router, prefix="/api/voice", tags=["voice"])
+app.include_router(trac.router)  # Main Trac integration router
 
 @app.get("/health")
 async def health_check():

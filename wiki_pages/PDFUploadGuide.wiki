@@ -1,0 +1,97 @@
+= PDF Upload Guide =
+
+This page allows you to upload educational PDFs to the LearnTrac system. Uploaded PDFs will be automatically processed through our advanced pipeline that:
+
+ * Extracts and analyzes content structure
+ * Creates intelligent semantic chunks
+ * Generates high-quality embeddings
+ * Stores everything in Neo4j for intelligent retrieval
+
+== Upload Form ==
+
+Use the form below to upload your PDF:
+
+[[PDFUpload]]
+
+== What Happens After Upload ==
+
+When you upload a PDF, the system will:
+
+ 1. **Extract Content**: Parse the PDF to extract text, structure, figures, tables, and code blocks
+ 2. **Chunk Intelligently**: Break content into semantically meaningful chunks of 250-300 words
+ 3. **Generate Embeddings**: Create vector embeddings using OpenAI's models
+ 4. **Store in Neo4j**: Build a knowledge graph with concepts, prerequisites, and relationships
+ 5. **Enable Search**: Make content searchable through semantic similarity
+
+== Supported Content Types ==
+
+The system is optimized for educational content including:
+ * Textbooks
+ * Course materials
+ * Technical documentation
+ * Research papers
+ * Tutorial guides
+
+== Processing Details ==
+
+=== Chunking Strategy ===
+ * Average chunk size: 250-300 words
+ * Preserves context and educational structure
+ * Identifies content types (definitions, examples, exercises)
+ * Extracts key concepts and prerequisites
+
+=== Embedding Generation ===
+ * Primary model: OpenAI text-embedding-ada-002 (1536 dimensions)
+ * Quality assessment ensures high-quality embeddings
+ * Educational alignment scoring
+
+=== Neo4j Storage ===
+ * Hierarchical structure: Textbook → Chapters → Sections → Chunks
+ * Concept extraction and linking
+ * Prerequisite tracking
+ * Vector similarity indexing
+
+== Search Your Content ==
+
+After uploading, you can search your content using:
+ * [/wiki/LearningSearch Natural language queries]
+ * [/wiki/ConceptExplorer Concept exploration]
+ * [/wiki/LearningPaths Personalized learning paths]
+
+== API Access ==
+
+For programmatic uploads, use the REST API:
+
+{{{
+POST /api/trac/textbooks/upload
+Content-Type: multipart/form-data
+Authorization: Bearer <your-token>
+
+file: <pdf-file>
+title: "Your Textbook Title"
+subject: "Computer Science"
+authors: ["Author 1", "Author 2"]
+}}}
+
+== Troubleshooting ==
+
+=== Large Files ===
+Files over 50MB may take several minutes to process. The system will:
+ * Show upload progress
+ * Continue processing in the background
+ * Send notification when complete
+
+=== Processing Errors ===
+If processing fails:
+ * Check that the PDF contains readable text (not scanned images)
+ * Ensure the file is not corrupted
+ * Verify you have upload permissions
+
+== Advanced Upload ==
+
+For authenticated uploads with additional security:
+
+[[PDFUpload(subject=Computer Science,require_auth=true)]]
+
+----
+''For more information, see the [/wiki/LearnTracUserGuide LearnTrac User Guide]''

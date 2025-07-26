@@ -1,0 +1,48 @@
+# Trac configuration template with PDF upload plugin
+
+[inherit]
+file = /usr/local/share/trac/conf/trac.ini
+
+[components]
+# Enable PDF upload macro
+pdfuploadmacro.* = enabled
+# Enable other Trac components
+trac.web.auth.loginmodule = enabled
+trac.wiki.web_ui.wikimodule = enabled
+
+[project]
+name = LearnTrac
+descr = AI-powered educational content management system
+url = http://localhost:8080
+
+[learntrac]
+# API endpoint for the LearnTrac service
+api_endpoint = http://learning-service:8001/api/trac
+# Maximum upload size (100MB)
+max_upload_size = 104857600
+# Upload timeout in seconds
+upload_timeout = 300
+# Enable debug logging
+debug = true
+
+[logging]
+log_type = stderr
+log_level = DEBUG
+
+[attachment]
+max_size = 104857600
+render_unsafe_content = false
+
+[mimeviewer]
+mime_map = text/plain:txt,application/pdf:pdf
+
+[notification]
+smtp_enabled = false
+
+[trac]
+base_url = http://localhost:8080
+database = ${TRAC_DB_URI}
+
+[wiki]
+render_unsafe_content = false
+safe_schemes = http,https,ftp,ftps,mailto,file
