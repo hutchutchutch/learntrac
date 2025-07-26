@@ -1,0 +1,103 @@
+# Example trac.ini configuration for PDFUploadMacro
+# Add these sections to your existing trac.ini file
+
+# Enable the plugin
+[components]
+pdfuploadmacro.* = enabled
+
+# Configure LearnTrac integration
+[learntrac]
+# API endpoint for the LearnTrac service
+# Default: http://localhost:8000/api/trac
+api_endpoint = http://localhost:8000/api/trac
+
+# Optional: Default API token for server-side authentication
+# If not set, users will need to provide their own tokens
+# api_token = sk-learntrac-your-token-here
+
+# Maximum upload size in bytes (default: 100MB)
+# Set to 0 for unlimited (not recommended)
+max_upload_size = 104857600
+
+# Upload timeout in seconds (default: 300)
+# Increase for slower connections or larger files
+upload_timeout = 300
+
+# Allowed file extensions (comma-separated)
+# Default: .pdf
+allowed_extensions = .pdf
+
+# Enable debug logging for troubleshooting
+# Default: false
+debug = false
+
+# Temporary file directory (optional)
+# Default: System temp directory
+# temp_dir = /var/tmp/learntrac
+
+# Enable upload notifications
+# Default: true
+enable_notifications = true
+
+# Notification email (if notifications enabled)
+# notification_email = admin@learntrac.edu
+
+# Permission configuration example
+[permission]
+# Define custom permission groups
+students = WIKI_VIEW, WIKI_CREATE, LEARNTRAC_UPLOAD
+instructors = students, WIKI_MODIFY, WIKI_DELETE
+administrators = instructors, TRAC_ADMIN
+
+# Logging configuration for debugging
+[logging]
+# Increase log level for debugging
+# log_level = DEBUG
+
+# Log to file
+# log_type = file
+# log_file = /path/to/trac/log/trac.log
+
+# Example notification configuration
+[notification]
+# SMTP settings for upload notifications
+smtp_enabled = true
+smtp_server = localhost
+smtp_port = 25
+smtp_from = learntrac@localhost
+smtp_subject_prefix = [LearnTrac]
+
+# Example attachment settings
+[attachment]
+# Ensure PDF mime type is allowed
+max_size = 104857600
+render_unsafe_content = false
+
+# Mime type mapping
+[mimeviewer]
+mime_map = text/plain:txt,application/pdf:pdf
+
+# Example wiki settings
+[wiki]
+# Ensure wiki processors are enabled
+render_unsafe_content = false
+safe_schemes = http,https,ftp,ftps,mailto,file
+
+# Example web frontend settings
+[trac]
+# Base URL for proper link generation
+base_url = http://your-trac-domain.com/trac
+
+# Project settings
+[project]
+name = LearnTrac Educational Platform
+descr = AI-powered educational content management
+url = http://learntrac.edu
+
+# Example database settings (not related to plugin, but shown for completeness)
+[database]
+database = sqlite:db/trac.db
+# For PostgreSQL:
+# database = postgres://user:password@localhost/trac
+# For MySQL:
+# database = mysql://user:password@localhost/trac

@@ -144,3 +144,37 @@ class TracDatabaseBridge:
                     t['status']: t['count'] for t in tickets
                 }
             }
+    
+    async def create_learning_ticket(
+        self,
+        title: str,
+        description: str,
+        component: str = "learning",
+        type: str = "task",
+        custom_fields: Optional[Dict[str, str]] = None
+    ) -> int:
+        """Create a new learning ticket"""
+        async with self.db_pool.acquire() as conn:
+            async with conn.transaction():
+                # Insert ticket
+                ticket_id = await conn.fetchval("""
+                    INSERT INTO ticket 
+                    (type, time, changetime, component, severity, priority,
+                     owner, reporter, cc, version, milestone, status, resolution,
+                     summary, description, keywords)
+                    VALUES ($1, $2, $3, $4, 'normal', 'normal',
+                            '', 'system', '', '', '', 'new', '',
+                            $5, $6, '')
+                    RETURNING id
+                """, type, int(datetime.now().timestamp()), 
+                    int(datetime.now().timestamp()), component, title, description)
+                
+                # Insert custom fields
+                if custom_fields:
+                    for name, value in custom_fields.items():
+                        await conn.execute("""
+                            INSERT INTO ticket_custom (ticket, name, value)
+                            VALUES ($1, $2, $3)
+                        """, ticket_id, name, value)
+                
+                return ticket_id
