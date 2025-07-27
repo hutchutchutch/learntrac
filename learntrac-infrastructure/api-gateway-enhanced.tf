@@ -1,5 +1,14 @@
 # Enhanced API Gateway Configuration with Cognito Authorization
 
+# Create Cognito Authorizer
+resource "aws_api_gateway_authorizer" "cognito" {
+  name                   = "${local.project_prefix}-cognito-auth"
+  rest_api_id            = aws_api_gateway_rest_api.learntrac.id
+  type                   = "COGNITO_USER_POOLS"
+  provider_arns          = [aws_cognito_user_pool.learntrac.arn]
+  identity_source        = "method.request.header.Authorization"
+}
+
 # Create request validator
 resource "aws_api_gateway_request_validator" "learntrac_validator" {
   name                        = "${local.project_prefix}-request-validator"

@@ -1,0 +1,33 @@
+#                                   #######                      
+#       ######   ##   #####  #    #    #    #####    ##    ####  
+#       #       #  #  #    # ##   #    #    #    #  #  #  #    # 
+#       #####  #    # #    # # #  #    #    #    # #    # #      
+#       #      ###### #####  #  # #    #    #####  ###### #      
+#       #      #    # #   #  #   ##    #    #   #  #    # #    # 
+####### ###### #    # #    # #    #    #    #    # #    #  ####  
+                                                                 
+
+= LearnTrac - AI-Powered Learning Platform =
+
+Welcome to LearnTrac, an intelligent learning platform that transforms your educational experience.
+
+[[LearnTrac]]
+
+== About LearnTrac ==
+
+LearnTrac combines the power of AI with your learning materials to provide:
+
+ * **Intelligent PDF Processing**: Upload textbooks and documents for AI-powered analysis
+ * **Smart Q&A**: Ask questions about your uploaded content and get instant answers
+ * **Personalized Learning**: Get recommendations based on your learning patterns
+ * **Progress Tracking**: Monitor your understanding and growth over time
+
+== Getting Started ==
+
+1. **Login**: Click the login link in the navigation bar to access LearnTrac features
+2. **Upload Content**: Use the interface above to upload PDF textbooks
+3. **Start Learning**: Ask questions and explore your content with AI assistance
+
+== Support ==
+
+For questions or issues, please contact the LearnTrac support team.

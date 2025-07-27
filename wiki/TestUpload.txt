@@ -1,0 +1,23 @@
+= Test Upload Page =
+
+== Simple Upload Test ==
+This uses a simpler macro with inline JavaScript:
+
+[[SimplePDFUpload]]
+
+== Original Upload Interface ==
+This is the original interface:
+
+[[PDFUpload]]
+
+== Direct JavaScript Test ==
+{{{
+#!html
+<div>
+<h3>Direct JavaScript Test</h3>
+<button onclick="alert('JavaScript is working!')">Test JavaScript</button>
+<script>
+console.log('Direct JavaScript test: This message should appear in console');
+</script>
+</div>
+}}}

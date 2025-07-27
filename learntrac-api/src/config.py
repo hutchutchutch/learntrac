@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 import os
 from urllib.parse import urlparse, quote_plus
 
@@ -45,7 +46,11 @@ def get_allowed_origins():
 
 class Settings(BaseSettings):
     # Database
-    database_url: str = fix_database_url(os.getenv("DATABASE_URL", "postgresql://user:pass@localhost/learntrac"))
+    database_url: str = os.getenv("DATABASE_URL", "postgresql://user:pass@localhost/learntrac")
+    
+    @field_validator('database_url')
+    def validate_database_url(cls, v):
+        return fix_database_url(v)
     
     # Redis
     redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379")
