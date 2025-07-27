@@ -39,12 +39,23 @@ class DatabaseManager:
                 expire_on_commit=False
             )
             
-            # Create asyncpg pool for raw queries
+            # Create asyncpg pool for raw queries with SSL
+            import ssl
+            ssl_context = ssl.create_default_context()
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+            
+            # Use direct connection parameters to avoid URL parsing issues
             self.pool = await asyncpg.create_pool(
-                settings.database_url,
+                host="hutch-learntrac-dev-db.c1uuigcm4bd1.us-east-2.rds.amazonaws.com",
+                port=5432,
+                user="learntrac_admin",
+                password="Vp-Sl}}D[(j&zxP5cjh%MTQtitYq2ic7",
+                database="learntrac",
                 min_size=10,
                 max_size=20,
-                command_timeout=60
+                command_timeout=60,
+                ssl=ssl_context
             )
             
             logger.info("Database connections initialized successfully")

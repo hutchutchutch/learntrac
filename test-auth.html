@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LearnTrac Test Authentication</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 50px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin: 10px; }
+        .success { color: green; }
+        .info { background: #f0f0f0; padding: 20px; margin: 20px 0; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>LearnTrac Test Authentication</h1>
+        
+        <div class="info">
+            <h2>✅ Your Account Status</h2>
+            <p><strong>Username:</strong> hutch</p>
+            <p><strong>Email:</strong> hutchenbach@gmail.com</p>
+            <p><strong>Status:</strong> <span class="success">Verified in Cognito</span></p>
+        </div>
+
+        <h2>Test Features:</h2>
+        
+        <h3>1. Upload a Textbook</h3>
+        <form id="uploadForm" enctype="multipart/form-data">
+            <input type="file" id="fileInput" accept=".pdf" required>
+            <button type="submit">Upload PDF</button>
+        </form>
+        <div id="uploadResult"></div>
+
+        <h3>2. View API Documentation</h3>
+        <button onclick="window.open('http://localhost:8001/docs', '_blank')">Open API Docs</button>
+
+        <h3>3. Check System Health</h3>
+        <button onclick="checkHealth()">Check Health</button>
+        <div id="healthResult"></div>
+
+        <h3>4. Access Trac (with bypass)</h3>
+        <button onclick="setBypassCookie()">Set Test Session & Access Trac</button>
+    </div>
+
+    <script>
+        // Upload textbook
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) return;
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const response = await fetch('http://localhost:8001/api/trac/textbooks/upload-dev', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                document.getElementById('uploadResult').innerHTML = 
+                    '<p class="success">✅ Upload successful! Textbook ID: ' + result.textbook_id + '</p>';
+            } catch (error) {
+                document.getElementById('uploadResult').innerHTML = 
+                    '<p style="color: red;">❌ Upload failed: ' + error.message + '</p>';
+            }
+        });
+
+        // Check health
+        async function checkHealth() {
+            try {
+                const response = await fetch('http://localhost:8001/health');
+                const result = await response.json();
+                document.getElementById('healthResult').innerHTML = 
+                    '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
+            } catch (error) {
+                document.getElementById('healthResult').innerHTML = 
+                    '<p style="color: red;">❌ Health check failed: ' + error.message + '</p>';
+            }
+        }
+
+        // Set bypass cookie for Trac
+        function setBypassCookie() {
+            // Set a test session cookie
+            document.cookie = "trac_session=hutch; path=/; domain=localhost";
+            document.cookie = "_oauth2_proxy=bypass; path=/; domain=localhost";
+            
+            // Redirect to Trac
+            setTimeout(() => {
+                window.location.href = "http://localhost:8000/projects/wiki/LearnTrac";
+            }, 500);
+        }
+    </script>
+</body>
+</html>
