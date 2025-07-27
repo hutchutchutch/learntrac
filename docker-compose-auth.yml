@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # Authentication Service
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    environment:
+      - COGNITO_REGION=us-east-2
+      - COGNITO_DOMAIN=hutch-learntrac-dev-auth
+      - COGNITO_CLIENT_ID=5adkv019v4rcu6o87ffg46ep02
+      - COGNITO_USER_POOL_ID=us-east-2_IvxzMrWwg
+      - TRAC_BASE_URL=http://localhost:8000
+      - AUTH_SERVICE_URL=http://localhost:8001
+    ports:
+      - "8001:8001"
+    networks:
+      - auth-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Trac Service
+  trac:
+    image: learntrac-trac:latest
+    container_name: trac-auth-test
+    environment:
+      # Database
+      - DATABASE_URL=sqlite:///var/trac/projects/trac.db
+      - TRAC_DB_URI=sqlite:///var/trac/projects/trac.db
+      - DB_HOST=localhost
+      - DB_USER=admin
+      - DB_PASSWORD=admin
+      - DB_NAME=trac
+      
+      # AWS Configuration
+      - AWS_REGION=us-east-2
+      
+      # Auth proxy configuration
+      - AUTH_SERVICE_URL=http://auth-service:8001
+      
+      # Trac configuration
+      - TRAC_PROJECT_NAME=LearnTrac
+      - TRAC_ADMIN_USER=admin
+      - TRAC_ADMIN_PASSWORD=admin
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./plugins/authproxy:/plugins/authproxy:ro
+      - ./plugins/pdfuploadmacro:/plugins/pdfuploadmacro:ro
+      - ./conf/trac-auth.ini:/var/trac/conf/trac.ini.custom:ro
+      - trac-auth-data:/var/trac/projects
+    networks:
+      - auth-network
+    depends_on:
+      - auth-service
+    command: |
+      /bin/bash -c "
+        # Install and configure plugins
+        if [ -d /plugins/authproxy ]; then
+          cp -r /plugins/authproxy /tmp/
+          cd /tmp/authproxy && python setup.py install
+        fi
+        
+        # Start Trac
+        tracd --port 8000 /var/trac/projects
+      "
+
+networks:
+  auth-network:
+    driver: bridge
+
+volumes:
+  trac-auth-data:

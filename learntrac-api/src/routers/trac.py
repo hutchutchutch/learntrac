@@ -158,7 +158,7 @@ async def get_trac_service(
     
     # Get dependencies
     db_manager = app.state.db_manager
-    redis_cache = app.state.redis_cache
+    # redis_cache = app.state.redis_cache  # Redis removed
     embedding_service = app.state.embedding_service
     
     # Create Neo4j config
@@ -173,7 +173,7 @@ async def get_trac_service(
     service = TracService(
         db_manager,
         neo4j_config,
-        redis_cache,
+        # redis_cache,  # Redis removed
         embedding_service
     )
     
@@ -192,10 +192,10 @@ async def get_auth_service(
     
     # Get dependencies
     db_manager = app.state.db_manager
-    redis_cache = app.state.redis_cache
+    # redis_cache = app.state.redis_cache  # Redis removed
     
     # Create service
-    service = AuthService(db_manager, redis_cache)
+    service = AuthService(db_manager)  # Redis removed from args
     
     # Initialize if needed
     if not service._initialized:

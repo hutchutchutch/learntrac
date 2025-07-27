@@ -1,0 +1,140 @@
+version: '3.8'
+
+services:
+  # PostgreSQL for Trac
+  postgres:
+    image: postgres:15-alpine
+    container_name: trac-postgres
+    environment:
+      - POSTGRES_DB=trac
+      - POSTGRES_USER=trac
+      - POSTGRES_PASSWORD=trac123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trac"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Simple Trac container
+  trac:
+    image: python:2.7
+    container_name: trac-simple
+    working_dir: /trac
+    environment:
+      - TRAC_PROJECT=learntrac
+      - PYTHONPATH=/trac/plugins
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./conf:/trac/conf
+      - ./plugins:/trac/plugins
+      - ./htdocs:/trac/htdocs
+      - ./templates:/trac/templates
+      - trac-data:/trac/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: |
+      bash -c "
+        pip install trac==1.4.3 psycopg2
+        
+        # Initialize Trac if needed
+        if [ ! -f /trac/conf/trac.ini ]; then
+          trac-admin /trac initenv learntrac postgres://trac:trac123@postgres/trac
+        fi
+        
+        # Copy our custom trac.ini
+        cp /trac/conf/trac.ini /trac/conf/trac.ini.bak || true
+        
+        # Start Trac
+        tracd --port 8000 /trac
+      "
+
+  # Simple API mock for testing
+  api-mock:
+    image: node:18-alpine
+    container_name: learntrac-api-mock
+    working_dir: /app
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./mock-api:/app
+    command: |
+      sh -c "
+        echo 'Creating mock API server...'
+        cat > server.js << 'EOF'
+        const http = require('http');
+        
+        // Mock textbooks data
+        const textbooks = [
+          {
+            textbook_id: '123e4567-e89b-12d3-a456-426614174000',
+            title: 'Introduction to Computer Science',
+            subject: 'Computer Science',
+            authors: ['John Doe', 'Jane Smith'],
+            pages_processed: 450,
+            chunks_created: 1823,
+            created_at: '2024-01-15T10:30:00Z'
+          },
+          {
+            textbook_id: '123e4567-e89b-12d3-a456-426614174001',
+            title: 'Advanced Mathematics',
+            subject: 'Mathematics',
+            authors: ['Alice Johnson'],
+            pages_processed: 320,
+            chunks_created: 1290,
+            created_at: '2024-01-14T15:45:00Z'
+          },
+          {
+            textbook_id: '123e4567-e89b-12d3-a456-426614174002',
+            title: 'Physics Fundamentals',
+            subject: 'Physics',
+            authors: ['Bob Wilson', 'Carol Davis'],
+            pages_processed: 580,
+            chunks_created: 2340,
+            created_at: '2024-01-13T09:20:00Z'
+          }
+        ];
+        
+        const server = http.createServer((req, res) => {
+          res.setHeader('Content-Type', 'application/json');
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          
+          if (req.url === '/api/trac/textbooks' || req.url.startsWith('/api/trac/textbooks?')) {
+            res.writeHead(200);
+            res.end(JSON.stringify({ textbooks }));
+          } else if (req.url === '/api/trac/textbooks/upload' && req.method === 'POST') {
+            res.writeHead(200);
+            res.end(JSON.stringify({
+              textbook_id: '123e4567-e89b-12d3-a456-426614174003',
+              title: 'Uploaded Textbook',
+              pages_processed: 200,
+              chunks_created: 800,
+              concepts_extracted: 150,
+              processing_time: 45.2,
+              status: 'completed'
+            }));
+          } else {
+            res.writeHead(404);
+            res.end(JSON.stringify({ error: 'Not found' }));
+          }
+        });
+        
+        server.listen(8001, () => {
+          console.log('Mock API server running on http://localhost:8001');
+          console.log('Available endpoints:');
+          console.log('  GET  /api/trac/textbooks');
+          console.log('  POST /api/trac/textbooks/upload');
+        });
+        EOF
+        
+        node server.js
+      "
+
+volumes:
+  postgres-data:
+  trac-data:

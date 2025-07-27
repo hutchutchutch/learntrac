@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:py="http://genshi.edgewall.org/"
+      xmlns:xi="http://www.w3.org/2001/XInclude">
+<head>
+    <title>Login - LearnTrac</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style type="text/css">
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .login-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            margin: 20px;
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .login-header h1 {
+            color: #333;
+            font-size: 28px;
+            font-weight: 600;
+            margin: 0 0 8px 0;
+        }
+        
+        .login-header p {
+            color: #666;
+            font-size: 14px;
+            margin: 0;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s ease;
+            box-sizing: border-box;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .login-button {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .login-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .login-button:active {
+            transform: translateY(0);
+        }
+        
+        .login-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .security-notice {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 24px;
+            font-size: 12px;
+            color: #6c757d;
+            text-align: center;
+        }
+        
+        .security-notice .icon {
+            color: #28a745;
+            margin-right: 4px;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 6px;
+            color: #721c24;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .rate-limit-info {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            color: #856404;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 10px;
+        }
+        
+        .loading .spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 480px) {
+            .login-container {
+                margin: 10px;
+                padding: 30px 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <h1>Welcome to LearnTrac</h1>
+            <p>Please sign in to continue</p>
+        </div>
+        
+        <py:if test="defined('error_message')">
+            <div class="error-message">
+                ${error_message}
+            </div>
+        </py:if>
+        
+        <py:if test="defined('rate_limited')">
+            <div class="rate-limit-info">
+                Too many login attempts. Please wait ${lockout_time} seconds before trying again.
+            </div>
+        </py:if>
+        
+        <form method="post" action="${login_url}" id="loginForm">
+            <input type="hidden" name="csrf_token" value="${csrf_token}" />
+            <input type="hidden" name="referer" value="${referer}" />
+            
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" 
+                       id="username" 
+                       name="username" 
+                       required 
+                       autocomplete="username"
+                       autofocus />
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" 
+                       id="password" 
+                       name="password" 
+                       required 
+                       autocomplete="current-password" />
+            </div>
+            
+            <button type="submit" class="login-button" id="loginButton">
+                Sign In
+            </button>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <span>Signing in...</span>
+            </div>
+        </form>
+        
+        <div class="security-notice">
+            <span class="icon">🔒</span>
+            Your connection is secured with modern encryption
+        </div>
+    </div>
+    
+    <script type="text/javascript">
+        // Modern login form enhancements
+        (function() {
+            var form = document.getElementById('loginForm');
+            var loginButton = document.getElementById('loginButton');
+            var loading = document.getElementById('loading');
+            
+            // Handle form submission
+            form.addEventListener('submit', function(e) {
+                // Show loading state
+                loginButton.disabled = true;
+                loginButton.style.display = 'none';
+                loading.style.display = 'block';
+                
+                // Basic client-side validation
+                var username = document.getElementById('username').value.trim();
+                var password = document.getElementById('password').value;
+                
+                if (!username || !password) {
+                    e.preventDefault();
+                    alert('Please enter both username and password.');
+                    resetForm();
+                    return false;
+                }
+                
+                // Let form submit normally
+                return true;
+            });
+            
+            function resetForm() {
+                loginButton.disabled = false;
+                loginButton.style.display = 'block';
+                loading.style.display = 'none';
+            }
+            
+            // Reset form if page is shown again (e.g., back button)
+            window.addEventListener('pageshow', function(e) {
+                if (e.persisted) {
+                    resetForm();
+                }
+            });
+            
+            // Auto-focus on empty field
+            window.addEventListener('load', function() {
+                var username = document.getElementById('username');
+                var password = document.getElementById('password');
+                
+                if (!username.value) {
+                    username.focus();
+                } else if (!password.value) {
+                    password.focus();
+                }
+            });
+            
+            // Enhanced security: Clear password on page unload
+            window.addEventListener('beforeunload', function() {
+                document.getElementById('password').value = '';
+            });
+            
+        })();
+    </script>
+</body>
+</html>

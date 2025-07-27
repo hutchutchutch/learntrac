@@ -155,13 +155,14 @@ variable "neo4j_password" {
   sensitive   = true
 }
 
-# OpenAI Configuration
-variable "openai_api_key" {
-  description = "OpenAI API key for AI features"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
+# Note: OpenAI Configuration variable is defined in variables-llm.tf
+# Commenting out duplicate variable
+# variable "openai_api_key" {
+#   description = "OpenAI API key for AI features"
+#   type        = string
+#   default     = ""
+#   sensitive   = true
+# }
 
 # OAuth provider variables
 variable "enable_google_oauth" {

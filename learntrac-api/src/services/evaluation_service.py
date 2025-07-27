@@ -7,12 +7,11 @@ import asyncio
 import json
 import logging
 import re
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
 from datetime import datetime
 import asyncpg
 
 from .llm_service import llm_service
-from .redis_client import redis_cache
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +22,6 @@ class AnswerEvaluationService:
     def __init__(self, db_pool: asyncpg.Pool = None):
         self.db_pool = db_pool
         self.llm_service = llm_service
-        self.cache_client = redis_cache
         self.mastery_threshold = 0.8
         
     async def initialize(self, db_pool: asyncpg.Pool):

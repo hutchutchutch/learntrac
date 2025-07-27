@@ -20,7 +20,7 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-from src.models import Base
+from src.db.models import Base
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
@@ -30,10 +30,44 @@ target_metadata = Base.metadata
 
 def get_url():
     """Get database URL from environment variables"""
-    return os.getenv(
+    from urllib.parse import quote_plus
+    
+    url = os.getenv(
         "DATABASE_URL",
         f"postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('RDS_ENDPOINT')}/{os.getenv('DB_NAME')}"
     )
+    
+    # Ensure we use postgresql:// not postgres://
+    if url.startswith('postgres://'):
+        url = url.replace('postgres://', 'postgresql://', 1)
+    
+    # Use psycopg (v3) instead of psycopg2
+    if url.startswith('postgresql://'):
+        url = url.replace('postgresql://', 'postgresql+psycopg://', 1)
+    
+    # Manual parsing for URLs with special characters that break urlparse
+    if '://' in url and '@' in url:
+        scheme_rest = url.split('://', 1)
+        scheme = scheme_rest[0]
+        rest = scheme_rest[1]
+        
+        userpass_host = rest.split('@', 1)
+        if len(userpass_host) == 2:
+            userpass = userpass_host[0]
+            host_rest = userpass_host[1]
+            
+            if ':' in userpass:
+                username = userpass.split(':', 1)[0]
+                password = userpass.split(':', 1)[1]
+                
+                # Encode password if it has special characters
+                if any(c in password for c in '{}[]()&%'):
+                    password = quote_plus(password)
+                
+                # Rebuild URL
+                url = f'{scheme}://{username}:{password}@{host_rest}'
+    
+    return url
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.

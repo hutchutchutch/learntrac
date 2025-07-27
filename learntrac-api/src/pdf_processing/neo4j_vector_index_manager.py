@@ -131,18 +131,19 @@ class Neo4jVectorIndexManager:
                     logger.warning(f"Index already exists: {config.index_name}")
                     return False
             
-            # Create the index
+            # Neo4j 5.12 doesn't support CREATE VECTOR INDEX
+            # Create a regular index for the property instead
+            # This will help with lookups even if vector similarity isn't native
             query = f"""
-                CREATE VECTOR INDEX {config.index_name} IF NOT EXISTS
+                CREATE INDEX {config.index_name} IF NOT EXISTS
                 FOR (n:{config.node_label})
-                ON n.{config.property_name}
-                OPTIONS $options
+                ON (n.{config.property_name})
             """
             
-            await self.connection.execute_query(
-                query,
-                {"options": config.to_cypher_options()}
-            )
+            await self.connection.execute_query(query)
+            
+            # Log that we're using compatibility mode
+            logger.warning(f"Created regular index {config.index_name} for Neo4j 5.12 compatibility. Native vector search not available.")
             
             # Store configuration
             self.index_configs[config.index_name] = config
@@ -271,10 +272,12 @@ class Neo4jVectorIndexManager:
             List of vector index information
         """
         try:
+            # Neo4j 5.12 doesn't have VECTOR type indexes
+            # List all indexes and filter by our naming convention
             query = """
                 SHOW INDEXES
-                WHERE type = 'VECTOR'
                 YIELD name, state, labelsOrTypes, properties, options
+                WHERE name ENDS WITH 'Embedding'
                 RETURN *
             """
             
@@ -403,15 +406,12 @@ class Neo4jVectorIndexManager:
             if not index_info:
                 raise ValueError(f"Index {index_name} not found")
             
-            # Build the query
+            # Neo4j 5.12 compatibility: Manual vector similarity search
+            # Build query to retrieve nodes with embeddings
             query_parts = [
-                f"CALL db.index.vector.queryNodes('{index_name}', $limit, $query_vector)",
-                "YIELD node, score"
+                f"MATCH (node:{index_info.node_label})",
+                f"WHERE node.{index_info.property_name} IS NOT NULL"
             ]
-            
-            # Add score filter
-            if min_score is not None:
-                query_parts.append(f"WHERE score >= {min_score}")
             
             # Add property filters
             if filters:
@@ -423,47 +423,64 @@ class Neo4jVectorIndexManager:
                         filter_conditions.append(f"node.{prop} = {value}")
                 
                 if filter_conditions:
-                    where_clause = " AND ".join(filter_conditions)
-                    if min_score is not None:
-                        query_parts[-1] += f" AND {where_clause}"
-                    else:
-                        query_parts.append(f"WHERE {where_clause}")
+                    query_parts.append("AND " + " AND ".join(filter_conditions))
             
             # Build return clause
             if return_properties:
                 return_props = [f"node.{prop} as {prop}" for prop in return_properties]
-                return_clause = f"RETURN id(node) as node_id, score, {', '.join(return_props)}"
+                return_clause = f"RETURN id(node) as node_id, node.{index_info.property_name} as embedding, {', '.join(return_props)}"
             else:
-                return_clause = "RETURN id(node) as node_id, score, node"
+                return_clause = f"RETURN id(node) as node_id, node.{index_info.property_name} as embedding, node"
             
             query_parts.append(return_clause)
-            query_parts.append("ORDER BY score DESC")
             
             query = "\n".join(query_parts)
             
-            # Execute search
-            results = await self.connection.execute_query(
-                query,
-                {
-                    "query_vector": query_vector,
-                    "limit": limit
-                }
-            )
+            # Execute search to get all nodes
+            results = await self.connection.execute_query(query)
+            
+            # Calculate similarities in-memory using pure Python
+            def cosine_similarity(vec1, vec2):
+                """Calculate cosine similarity between two vectors"""
+                dot_product = sum(a * b for a, b in zip(vec1, vec2))
+                norm1 = (sum(a * a for a in vec1)) ** 0.5
+                norm2 = (sum(b * b for b in vec2)) ** 0.5
+                
+                if norm1 > 0 and norm2 > 0:
+                    return dot_product / (norm1 * norm2)
+                return 0.0
+            
+            scored_results = []
+            for record in results:
+                embedding = record.get("embedding")
+                if embedding and len(embedding) == len(query_vector):
+                    score = cosine_similarity(query_vector, embedding)
+                    
+                    if min_score is None or score >= min_score:
+                        scored_results.append((float(score), record))
+            
+            # Sort by score and limit
+            scored_results.sort(key=lambda x: x[0], reverse=True)
+            scored_results = scored_results[:limit]
+            
+            results = [record for _, record in scored_results]
             
             # Format results
             search_results = []
-            for record in results:
+            for score, record in scored_results:
                 if "node" in record:
                     # Full node returned
                     node_props = dict(record["node"])
+                    # Remove embedding from properties to avoid sending large arrays
+                    node_props.pop(index_info.property_name, None)
                 else:
                     # Specific properties returned
                     node_props = {k: v for k, v in record.items() 
-                                 if k not in ["node_id", "score"]}
+                                 if k not in ["node_id", "embedding"]}
                 
                 search_results.append(VectorSearchResult(
                     node_id=str(record["node_id"]),
-                    score=record["score"],
+                    score=score,
                     node_properties=node_props
                 ))
             
@@ -523,7 +540,7 @@ class Neo4jVectorIndexManager:
         ef_search: Optional[int] = None
     ) -> bool:
         """
-        Update index configuration (limited options available at runtime).
+        Update index configuration (not supported in Neo4j 5.12).
         
         Args:
             index_name: Name of the index
@@ -532,28 +549,9 @@ class Neo4jVectorIndexManager:
         Returns:
             True if successful, False otherwise
         """
-        try:
-            if ef_search is not None:
-                # Update ef_search parameter
-                query = """
-                    CALL db.index.vector.setConfig($index_name, 'vector.hnsw.ef_search', $ef_search)
-                """
-                
-                await self.connection.execute_query(
-                    query,
-                    {
-                        "index_name": index_name,
-                        "ef_search": ef_search
-                    }
-                )
-                
-                logger.info(f"Updated ef_search for {index_name} to {ef_search}")
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to update index config: {e}")
-            return False
+        # Neo4j 5.12 doesn't support vector index configuration
+        logger.warning(f"Vector index configuration not supported in Neo4j 5.12")
+        return False
     
     async def analyze_index_distribution(
         self,
@@ -596,22 +594,52 @@ class Neo4jVectorIndexManager:
             vectors = results[0]["vectors"]
             sample_count = results[0]["sample_count"]
             
-            # Calculate statistics
-            import numpy as np
-            vectors_array = np.array(vectors)
+            # Calculate statistics using pure Python
+            def vector_norm(vec):
+                return (sum(x * x for x in vec)) ** 0.5
+            
+            def cosine_similarity(vec1, vec2):
+                dot_product = sum(a * b for a, b in zip(vec1, vec2))
+                norm1 = vector_norm(vec1)
+                norm2 = vector_norm(vec2)
+                if norm1 > 0 and norm2 > 0:
+                    return dot_product / (norm1 * norm2)
+                return 0.0
+            
+            # Compute vector norms
+            norms = [vector_norm(v) for v in vectors]
             
             # Compute pairwise similarities for a subset
             subset_size = min(100, len(vectors))
-            subset_vectors = vectors_array[:subset_size]
+            subset_vectors = vectors[:subset_size]
             
             similarities = []
             for i in range(subset_size):
                 for j in range(i + 1, subset_size):
-                    # Cosine similarity
-                    sim = np.dot(subset_vectors[i], subset_vectors[j]) / (
-                        np.linalg.norm(subset_vectors[i]) * np.linalg.norm(subset_vectors[j])
-                    )
+                    sim = cosine_similarity(subset_vectors[i], subset_vectors[j])
                     similarities.append(sim)
+            
+            # Calculate statistics manually
+            def mean(values):
+                return sum(values) / len(values) if values else 0
+            
+            def std_dev(values):
+                if not values:
+                    return 0
+                m = mean(values)
+                variance = sum((x - m) ** 2 for x in values) / len(values)
+                return variance ** 0.5
+            
+            def percentile(values, p):
+                if not values:
+                    return 0
+                sorted_values = sorted(values)
+                k = (len(sorted_values) - 1) * (p / 100)
+                f = int(k)
+                c = k - f
+                if f + 1 < len(sorted_values):
+                    return sorted_values[f] * (1 - c) + sorted_values[f + 1] * c
+                return sorted_values[f]
             
             analysis = {
                 "index_name": index_name,
@@ -619,20 +647,20 @@ class Neo4jVectorIndexManager:
                 "sample_size": sample_count,
                 "dimensions": index_info.dimensions,
                 "vector_stats": {
-                    "mean_norm": float(np.mean(np.linalg.norm(vectors_array, axis=1))),
-                    "std_norm": float(np.std(np.linalg.norm(vectors_array, axis=1))),
-                    "min_norm": float(np.min(np.linalg.norm(vectors_array, axis=1))),
-                    "max_norm": float(np.max(np.linalg.norm(vectors_array, axis=1)))
+                    "mean_norm": float(mean(norms)),
+                    "std_norm": float(std_dev(norms)),
+                    "min_norm": float(min(norms)) if norms else 0,
+                    "max_norm": float(max(norms)) if norms else 0
                 },
                 "similarity_distribution": {
-                    "mean": float(np.mean(similarities)) if similarities else 0,
-                    "std": float(np.std(similarities)) if similarities else 0,
-                    "min": float(np.min(similarities)) if similarities else 0,
-                    "max": float(np.max(similarities)) if similarities else 0,
+                    "mean": float(mean(similarities)),
+                    "std": float(std_dev(similarities)),
+                    "min": float(min(similarities)) if similarities else 0,
+                    "max": float(max(similarities)) if similarities else 0,
                     "percentiles": {
-                        "25": float(np.percentile(similarities, 25)) if similarities else 0,
-                        "50": float(np.percentile(similarities, 50)) if similarities else 0,
-                        "75": float(np.percentile(similarities, 75)) if similarities else 0
+                        "25": float(percentile(similarities, 25)),
+                        "50": float(percentile(similarities, 50)),
+                        "75": float(percentile(similarities, 75))
                     }
                 }
             }

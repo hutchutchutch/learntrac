@@ -1,0 +1,40 @@
+= Welcome to LearnTrac =
+
+'''Your AI-powered platform for generating personalized learning paths'''
+
+----
+
+#!html
+<div style="text-align: center; margin: 20px 0;">
+<p style="font-size: 18px; line-height: 1.6;">
+LearnTrac transforms how you learn by creating personalized learning paths from any educational content. Simply upload a textbook PDF, and our AI will analyze it to create an intelligent knowledge graph that understands concepts, relationships, and learning sequences.
+</p>
+
+<p style="font-size: 16px; margin: 20px 0;">
+<strong>Browse existing textbooks</strong> to explore pre-processed educational materials across various subjects. Each textbook has been intelligently chunked and indexed, making it easy to find exactly what you need to learn.
+</p>
+
+<p style="font-size: 16px; margin: 20px 0;">
+<strong>Upload your own textbook</strong> to add it to the knowledge base. Our system will process your PDF, extract key concepts, and build a comprehensive learning graph that can generate custom learning paths based on your goals.
+</p>
+
+<p style="font-size: 16px; margin: 20px 0;">
+<strong>Enter what you're interested in learning</strong> in the search box below. Whether it's "machine learning basics", "quantum physics for beginners", or "advanced calculus proofs", LearnTrac will find the most relevant content and create a structured learning path just for you.
+</p>
+</div>
+
+----
+
+[[LearningSearch]]
+
+----
+
+== Upload a New Textbook ==
+
+[[PDFUpload]]
+
+----
+
+== Browse Available Textbooks ==
+
+[[TextbookList]]

@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # Trac service (Simple - just needs DB connection)
+  trac:
+    image: python:2.7
+    container_name: trac-aws
+    working_dir: /trac
+    environment:
+      - TRAC_PROJECT=learntrac
+      - PYTHONPATH=/trac/plugins
+      - TRAC_INI_PATH=/trac/conf/trac.ini
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./conf/trac.ini:/trac/conf/trac.ini
+      - ./plugins:/trac/plugins
+      - ./htdocs:/trac/htdocs
+      - ./templates:/trac/templates
+      - trac-data:/trac/data
+    env_file:
+      - .env.aws
+    command: >
+      bash -c "
+        echo 'Installing Trac dependencies...' &&
+        pip install trac==1.4.3 psycopg2 &&
+        if [ -f /trac/plugins/PDFUploadMacro*.egg ]; then
+          echo 'Installing PDF upload plugin...' &&
+          easy_install /trac/plugins/PDFUploadMacro*.egg
+        fi &&
+        if [ ! -d /trac/data ]; then
+          echo 'Initializing Trac project...' &&
+          trac-admin /trac initenv learntrac \"postgres://$$DB_USER:$$DB_PASSWORD@$$DB_HOST/$$DB_NAME\"
+        fi &&
+        echo 'Starting Trac on port 8000...' &&
+        tracd --port 8000 /trac"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - learntrac-network
+  
+  # Learning API service (simplified)
+  learning-api:
+    image: python:3.11-slim
+    container_name: learning-api
+    working_dir: /app
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./learntrac-api/src:/app/src
+      - ./learntrac-api/requirements.txt:/app/requirements.txt
+    env_file:
+      - .env.aws
+    networks:
+      - learntrac-network
+    command: >
+      bash -c "
+        echo 'Installing minimal dependencies...' &&
+        apt-get update && apt-get install -y gcc libpq-dev curl &&
+        pip install fastapi==0.104.1 uvicorn==0.24.0 psycopg2-binary==2.9.9 redis==5.0.1 neo4j==5.14.0 httpx==0.25.2 python-jose[cryptography]==3.3.0 python-multipart==0.0.6 pydantic==2.5.0 &&
+        echo 'Creating API server...' &&
+        cd /app &&
+        python -c 'exec(open(\"/app/src/minimal_api.py\").read())'"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  trac-data:
+
+networks:
+  learntrac-network:
+    driver: bridge

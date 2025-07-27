@@ -6,7 +6,6 @@ Handles academic content embeddings and similarity search
 import logging
 from typing import List, Dict, Any, Optional, Tuple
 from neo4j import AsyncGraphDatabase, AsyncDriver
-import numpy as np
 from datetime import datetime
 
 from ..config import settings
@@ -59,30 +58,40 @@ class Neo4jVectorStore:
     async def _create_indexes(self):
         """Create necessary indexes and constraints"""
         async with self.driver.session() as session:
-            # Create vector index for content embeddings
-            await session.run("""
-                CREATE VECTOR INDEX contentEmbedding IF NOT EXISTS
-                FOR (c:Content)
-                ON c.embedding
-                OPTIONS {indexConfig: {
-                    `vector.dimensions`: 1536,
-                    `vector.similarity_function`: 'cosine'
-                }}
-            """)
+            # Neo4j 5.12 doesn't support CREATE VECTOR INDEX syntax
+            # Instead, create regular indexes for performance
+            # Vector similarity search will be handled differently
             
-            # Create constraint for unique content IDs
-            await session.run("""
-                CREATE CONSTRAINT unique_content_id IF NOT EXISTS
-                FOR (c:Content)
-                REQUIRE c.content_id IS UNIQUE
-            """)
+            try:
+                # Try to create constraint for unique content IDs
+                await session.run("""
+                    CREATE CONSTRAINT unique_content_id IF NOT EXISTS
+                    FOR (c:Content)
+                    REQUIRE c.content_id IS UNIQUE
+                """)
+            except Exception as e:
+                # If constraint fails because index exists, that's ok
+                logger.warning(f"Constraint creation failed (may already exist): {e}")
+                
+                # Try to create just the index instead
+                try:
+                    await session.run("""
+                        CREATE INDEX content_id_index IF NOT EXISTS
+                        FOR (c:Content)
+                        ON (c.content_id)
+                    """)
+                except Exception as e2:
+                    logger.info(f"Index may already exist: {e2}")
             
             # Create index for ticket references
-            await session.run("""
-                CREATE INDEX content_ticket_id IF NOT EXISTS
-                FOR (c:Content)
-                ON (c.ticket_id)
-            """)
+            try:
+                await session.run("""
+                    CREATE INDEX content_ticket_id IF NOT EXISTS
+                    FOR (c:Content)
+                    ON (c.ticket_id)
+                """)
+            except Exception as e:
+                logger.info(f"Ticket index may already exist: {e}")
     
     async def store_content_embedding(
         self,
@@ -136,38 +145,62 @@ class Neo4jVectorStore:
         
         try:
             async with self.driver.session() as session:
-                # Build the query based on whether content_type filter is needed
-                query = """
-                    CALL db.index.vector.queryNodes(
-                        'contentEmbedding',
-                        $limit,
-                        $query_embedding
-                    ) YIELD node, score
-                    WHERE score >= $threshold
+                # Neo4j 5.12 approach: Retrieve nodes and calculate similarity in-memory
+                # This is a temporary solution until vector index support is available
+                
+                # First, get all content nodes with embeddings
+                base_query = """
+                    MATCH (c:Content)
+                    WHERE c.embedding IS NOT NULL
                 """
                 
                 if content_type:
-                    query += " AND node.content_type = $content_type"
+                    base_query += " AND c.content_type = $content_type"
                 
-                query += """
-                    RETURN node.content_id as content_id,
-                           node.content_type as content_type,
-                           node.text as text,
-                           node.ticket_id as ticket_id,
-                           node.concept_id as concept_id,
-                           node.metadata as metadata,
-                           score
-                    ORDER BY score DESC
+                base_query += """
+                    RETURN c.content_id as content_id,
+                           c.content_type as content_type,
+                           c.text as text,
+                           c.ticket_id as ticket_id,
+                           c.concept_id as concept_id,
+                           c.metadata as metadata,
+                           c.embedding as embedding
                 """
                 
-                result = await session.run(query, {
-                    "query_embedding": query_embedding,
-                    "limit": limit,
-                    "threshold": threshold,
-                    "content_type": content_type
-                })
+                result = await session.run(base_query, {"content_type": content_type})
                 
-                return [dict(record) async for record in result]
+                # Calculate cosine similarity for each content
+                # Using pure Python instead of numpy for compatibility
+                def cosine_similarity(vec1, vec2):
+                    """Calculate cosine similarity between two vectors"""
+                    dot_product = sum(a * b for a, b in zip(vec1, vec2))
+                    norm1 = (sum(a * a for a in vec1)) ** 0.5
+                    norm2 = (sum(b * b for b in vec2)) ** 0.5
+                    
+                    if norm1 > 0 and norm2 > 0:
+                        return dot_product / (norm1 * norm2)
+                    return 0.0
+                
+                similar_content = []
+                async for record in result:
+                    content_embedding = record["embedding"]
+                    if content_embedding and len(content_embedding) == len(query_embedding):
+                        score = cosine_similarity(query_embedding, content_embedding)
+                        
+                        if score >= threshold:
+                            similar_content.append({
+                                "content_id": record["content_id"],
+                                "content_type": record["content_type"],
+                                "text": record["text"],
+                                "ticket_id": record["ticket_id"],
+                                "concept_id": record["concept_id"],
+                                "metadata": record["metadata"],
+                                "score": float(score)
+                            })
+                
+                # Sort by score and limit results
+                similar_content.sort(key=lambda x: x["score"], reverse=True)
+                return similar_content[:limit]
                 
         except Exception as e:
             logger.error(f"Failed to find similar content: {e}")

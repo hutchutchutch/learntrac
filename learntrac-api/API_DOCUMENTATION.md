@@ -2,43 +2,218 @@
 
 ## Overview
 
-The LearnTrac API provides RESTful endpoints for managing learning paths, tracking student progress, and delivering AI-enhanced educational content. All endpoints require JWT authentication via AWS Cognito.
+The LearnTrac API provides RESTful endpoints for managing learning paths, tracking student progress, and delivering AI-enhanced educational content. The API uses modern session-based authentication that integrates seamlessly with Trac's authentication system.
 
 ## Authentication
 
-### JWT Bearer Token
+### Modern Session-Based Authentication
 
-All API requests (except health checks) must include a valid JWT token in the Authorization header:
+LearnTrac uses a **modern session-based authentication system** that significantly upgrades Trac's original HTTP cookie-based auth. This new system provides enterprise-grade security while maintaining full compatibility with Trac's Python 2.7 environment.
+
+#### Key Improvements Over Original Trac Auth:
+
+1. **Secure Token Design**
+   - **Original**: Simple MD5-hashed cookies with username and IP address
+   - **Modern**: HMAC-SHA256 signed tokens with cryptographic signatures
+   - **Benefit**: Tokens cannot be forged or tampered with, even if intercepted
+
+2. **Enhanced Security Features**
+   - **CSRF Protection**: All state-changing requests require CSRF tokens
+   - **Rate Limiting**: Progressive delays prevent brute-force attacks (15min → 1hr lockouts)
+   - **Secure Headers**: Modern security headers (CSP, HSTS, X-Frame-Options)
+   - **Session Encryption**: Sensitive data never exposed in cookies
+
+3. **Session Management**
+   - **Original**: Sessions stored in browser cookies only
+   - **Modern**: Redis-backed sessions with automatic expiration
+   - **Benefit**: Sessions can be revoked server-side, better scalability
+
+4. **Token Structure**
+   ```
+   Original Cookie: "username:timestamp:md5hash"
+   Modern Token: "base64(payload).hmac_signature"
+   
+   Payload includes:
+   - user_id: Username
+   - permissions: List of Trac permissions
+   - groups: User groups
+   - session_id: Unique session identifier
+   - issued_at: Token creation time
+   - expires_at: Token expiration
+   - client_ip: IP validation
+   ```
+
+### Authentication Methods
+
+#### 1. Session Token (Primary)
+
+Session tokens are automatically set by Trac when users log in through the modern auth plugin:
 
 ```http
-Authorization: Bearer <jwt_token>
+Cookie: trac_auth_token=<secure_session_token>
 ```
 
-Tokens are obtained through AWS Cognito authentication flow and include:
-- User identity (`sub`, `email`, `username`)
-- Groups (`cognito:groups`)
-- Custom permissions (`trac_permissions`)
+Alternatively, for API clients:
 
-### Permission Levels
+```http
+Authorization: Bearer <secure_session_token>
+X-Session-Token: <secure_session_token>
+```
+
+#### 2. API Key Authentication
+
+For service-to-service calls:
+
+```http
+X-API-Key: <api_key>
+```
+
+#### 3. Development Mode
+
+In development environments only:
+
+```http
+Authorization: Basic <base64(username:password)>
+```
+
+### Permission System
+
+The modern auth system integrates with Trac's permission model:
 
 1. **Students** (`students` group):
-   - View learning content
-   - Track own progress
-   - Submit practice answers
-   - Search concepts
+   - `LEARNING_PARTICIPATE` - Access learning content
+   - `TICKET_VIEW` - View tickets
+   - `WIKI_VIEW` - Read wiki pages
 
 2. **Instructors** (`instructors` group):
-   - All student permissions
-   - Create/modify content
-   - View analytics
-   - Grade assignments
+   - All student permissions plus:
+   - `LEARNING_INSTRUCT` - Create/modify content
+   - `TICKET_CREATE` - Create new tickets
+   - `WIKI_MODIFY` - Edit wiki pages
 
 3. **Admins** (`admins` group):
-   - Full system access
-   - User management
-   - System configuration
+   - `TRAC_ADMIN` - Full system access
+   - All other permissions
+
+### CSRF Protection
+
+For POST, PUT, DELETE, and PATCH requests, include a CSRF token:
+
+```http
+X-CSRF-Token: <csrf_token>
+```
+
+Or in form data:
+```json
+{
+  "csrf_token": "<csrf_token>",
+  "other_data": "..."
+}
+```
 
 ## API Endpoints
+
+### Authentication Endpoints
+
+#### Verify Session
+```http
+GET /auth/verify
+```
+
+Verifies the current session and returns user information.
+
+Response:
+```json
+{
+  "authenticated": true,
+  "user": {
+    "username": "john_doe",
+    "email": "john@example.com",
+    "full_name": "John Doe",
+    "permissions": ["LEARNING_PARTICIPATE", "TICKET_VIEW"],
+    "groups": ["students"],
+    "session_id": "uuid",
+    "is_admin": false,
+    "is_instructor": false,
+    "is_student": true
+  }
+}
+```
+
+#### Get Current User
+```http
+GET /auth/user
+```
+
+Returns detailed information about the authenticated user.
+
+#### Check Permissions
+```http
+GET /auth/permissions
+```
+
+Returns user's permissions and access levels:
+```json
+{
+  "permissions": ["LEARNING_PARTICIPATE", "TICKET_VIEW"],
+  "groups": ["students"],
+  "access_levels": {
+    "admin": false,
+    "instructor": false,
+    "student": true
+  },
+  "specific_permissions": {
+    "trac_admin": false,
+    "learning_instruct": false,
+    "learning_participate": true,
+    "ticket_create": false,
+    "wiki_modify": false
+  }
+}
+```
+
+#### Check Specific Permission
+```http
+GET /auth/check/{permission}
+```
+
+Example: `/auth/check/LEARNING_INSTRUCT`
+
+Response:
+```json
+{
+  "permission": "LEARNING_INSTRUCT",
+  "granted": false,
+  "user": "john_doe"
+}
+```
+
+#### Logout
+```http
+POST /auth/logout
+```
+
+Clears authentication cookies. Note: Actual session invalidation happens on the Trac side.
+
+#### Authentication Status
+```http
+GET /auth/status
+```
+
+Returns authentication system configuration:
+```json
+{
+  "auth_system": "modern_session",
+  "provider": "trac_builtin",
+  "session_based": true,
+  "features": {
+    "csrf_protection": true,
+    "rate_limiting": true,
+    "secure_tokens": true,
+    "redis_sessions": true
+  }
+}
+```
 
 ### Learning Paths
 
@@ -156,7 +331,7 @@ GET /api/learntrac/progress?path_id=uuid
 Response:
 ```json
 {
-  "student_id": "cognito-sub",
+  "student_id": "john_doe",
   "statistics": {
     "total_concepts": 50,
     "completed": 20,
@@ -234,8 +409,10 @@ Response:
   "version": "1.0.0",
   "components": {
     "database": "healthy",
-    "redis": "healthy",
-    "neo4j": "healthy"
+    "neo4j": "not_configured",
+    "llm": "healthy",
+    "tickets": "healthy",
+    "evaluation": "healthy"
   }
 }
 ```
@@ -279,53 +456,97 @@ Common HTTP status codes:
 
 ## Rate Limiting
 
-API requests are rate-limited per user:
-- Default: 100 requests per minute
-- Bulk operations: 10 requests per minute
+The modern auth system includes built-in rate limiting:
 
-Rate limit headers:
-- `X-RateLimit-Limit`: Maximum requests allowed
-- `X-RateLimit-Remaining`: Requests remaining
-- `X-RateLimit-Reset`: Time when limit resets
+- **Login attempts**: 5 attempts per 15 minutes
+- **Progressive delays**: Failed attempts increase lockout time (15min → 30min → 1hr)
+- **API requests**: 100 requests per minute per user
+- **Bulk operations**: 10 requests per minute
 
-## Pagination
-
-List endpoints support pagination:
-
-```http
-GET /api/learntrac/paths?page=1&size=20
-```
-
-Response includes pagination metadata:
+Rate limit information in response:
 ```json
 {
-  "items": [...],
-  "total": 100,
-  "page": 1,
-  "size": 20,
-  "pages": 5
+  "error": "Too many login attempts",
+  "lockout_time": 900,
+  "message": "Please wait 15 minutes before trying again"
 }
 ```
 
-## WebSocket Support
+## Security Headers
 
-Real-time features available at:
-```
-ws://localhost:8001/api/learntrac/ws
+All API responses include modern security headers:
+
+```http
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN  
+X-XSS-Protection: 1; mode=block
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; ...
+Referrer-Policy: strict-origin-when-cross-origin
 ```
 
-Used for:
-- Live progress updates
-- Collaborative learning sessions
-- Real-time notifications
+## Configuration
+
+### Environment Variables
+
+```bash
+# Required for session validation
+TRAC_AUTH_SECRET=your-secret-key-min-32-chars
+
+# Trac integration
+TRAC_BASE_URL=http://localhost:8000
+SESSION_TIMEOUT=3600  # 1 hour
+
+# API Keys (comma-separated)
+VALID_API_KEYS=key1,key2,key3
+INTERNAL_API_KEY=internal-service-key
+
+# Development
+ENVIRONMENT=development  # or production
+```
+
+## Migration from Cognito
+
+The modern session-based auth is a drop-in replacement for the previous Cognito JWT authentication:
+
+1. **No client changes needed** - Session tokens work with existing cookie mechanisms
+2. **Permissions preserved** - Same permission model as before
+3. **API compatibility** - All endpoints work the same way
+4. **Enhanced security** - Better protection without complexity
+
+### Key Differences:
+
+| Feature | Cognito JWT | Modern Session |
+|---------|-------------|----------------|
+| Token Type | JWT | HMAC-signed session |
+| Token Storage | Bearer header | Cookie + optional header |
+| Session Storage | Stateless | Redis with fallback |
+| Python Compatibility | 3.x only | 2.7 and 3.x |
+| Infrastructure | AWS managed | Self-managed |
+| CSRF Protection | Manual | Built-in |
+| Rate Limiting | External | Built-in |
 
 ## Best Practices
 
-1. **Cache responses** when appropriate (concepts, paths)
-2. **Use batch operations** for multiple updates
-3. **Include correlation IDs** in requests for debugging
-4. **Handle pagination** for large result sets
-5. **Implement exponential backoff** for retries
+1. **Session Management**
+   - Sessions expire after 1 hour by default
+   - Renew sessions by re-authenticating through Trac
+   - Logout properly to clear server-side sessions
+
+2. **CSRF Protection**
+   - Always include CSRF tokens for state-changing requests
+   - Tokens are provided by the Trac auth system
+   - Validate tokens on every POST/PUT/DELETE
+
+3. **Error Handling**
+   - Check for 401 errors and re-authenticate
+   - Handle rate limiting with exponential backoff
+   - Log session IDs for debugging (not tokens)
+
+4. **Performance**
+   - Session validation is cached for 5 minutes
+   - Use connection pooling for API clients
+   - Batch operations when possible
 
 ## SDK Examples
 
@@ -333,29 +554,48 @@ Used for:
 ```python
 import httpx
 
+# Session-based auth (automatic from browser)
+async with httpx.AsyncClient(cookies={"trac_auth_token": token}) as client:
+    response = await client.get("http://localhost:8001/api/learntrac/paths")
+    paths = response.json()
+
+# API key auth
 async with httpx.AsyncClient() as client:
-    headers = {"Authorization": f"Bearer {token}"}
+    headers = {"X-API-Key": api_key}
     response = await client.get(
         "http://localhost:8001/api/learntrac/paths",
         headers=headers
     )
-    paths = response.json()
 ```
 
 ### JavaScript
 ```javascript
+// Browser (cookies sent automatically)
+const response = await fetch('/api/learntrac/paths', {
+  credentials: 'include'
+});
+
+// API key
 const response = await fetch('/api/learntrac/paths', {
   headers: {
-    'Authorization': `Bearer ${token}`,
+    'X-API-Key': apiKey,
     'Content-Type': 'application/json'
   }
 });
-const paths = await response.json();
 ```
 
 ## Changelog
 
-### v1.0.0 (Current)
+### v2.0.0 (Current)
+- **BREAKING**: Replaced AWS Cognito with modern session-based auth
+- Added HMAC-signed secure session tokens
+- Implemented CSRF protection
+- Added progressive rate limiting
+- Improved Python 2.7 compatibility
+- Enhanced security headers
+- Redis session storage with fallback
+
+### v1.0.0
 - Initial release with core learning features
 - JWT authentication via AWS Cognito
 - PostgreSQL + Redis + Neo4j integration

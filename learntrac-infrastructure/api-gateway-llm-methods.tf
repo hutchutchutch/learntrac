@@ -2,15 +2,15 @@
 
 # POST /api/v1/llm/generate
 resource "aws_api_gateway_method" "llm_generate" {
-  rest_api_id   = aws_api_gateway_rest_api.learntrac_api.id
+  rest_api_id   = aws_api_gateway_rest_api.learntrac.id
   resource_id   = aws_api_gateway_resource.llm_generate.id
   http_method   = "POST"
-  authorization = "COGNITO_USER_POOLS"
-  authorizer_id = aws_api_gateway_authorizer.cognito.id
+  authorization = "NONE"  # Changed from COGNITO_USER_POOLS
+  # authorizer_id = aws_api_gateway_authorizer.cognito.id  # Cognito removed
 
-  authorization_scopes = [
-    "${aws_cognito_resource_server.learntrac_api.identifier}/write"
-  ]
+  # authorization_scopes = [
+  #   "${aws_cognito_resource_server.learntrac_api.identifier}/write"
+  # ]  # Cognito removed
 
   request_validator_id = aws_api_gateway_request_validator.learntrac_validator.id
 
@@ -20,7 +20,7 @@ resource "aws_api_gateway_method" "llm_generate" {
 }
 
 resource "aws_api_gateway_integration" "llm_generate" {
-  rest_api_id = aws_api_gateway_rest_api.learntrac_api.id
+  rest_api_id = aws_api_gateway_rest_api.learntrac.id
   resource_id = aws_api_gateway_resource.llm_generate.id
   http_method = aws_api_gateway_method.llm_generate.http_method
 
@@ -30,7 +30,7 @@ resource "aws_api_gateway_integration" "llm_generate" {
 }
 
 resource "aws_api_gateway_method_response" "llm_generate" {
-  rest_api_id = aws_api_gateway_rest_api.learntrac_api.id
+  rest_api_id = aws_api_gateway_rest_api.learntrac.id
   resource_id = aws_api_gateway_resource.llm_generate.id
   http_method = aws_api_gateway_method.llm_generate.http_method
   status_code = "200"
@@ -46,15 +46,15 @@ resource "aws_api_gateway_method_response" "llm_generate" {
 
 # POST /api/v1/llm/evaluate
 resource "aws_api_gateway_method" "llm_evaluate" {
-  rest_api_id   = aws_api_gateway_rest_api.learntrac_api.id
+  rest_api_id   = aws_api_gateway_rest_api.learntrac.id
   resource_id   = aws_api_gateway_resource.llm_evaluate.id
   http_method   = "POST"
-  authorization = "COGNITO_USER_POOLS"
-  authorizer_id = aws_api_gateway_authorizer.cognito.id
+  authorization = "NONE"  # Changed from COGNITO_USER_POOLS
+  # authorizer_id = aws_api_gateway_authorizer.cognito.id  # Cognito removed
 
-  authorization_scopes = [
-    "${aws_cognito_resource_server.learntrac_api.identifier}/write"
-  ]
+  # authorization_scopes = [
+  #   "${aws_cognito_resource_server.learntrac_api.identifier}/write"
+  # ]  # Cognito removed
 
   request_validator_id = aws_api_gateway_request_validator.learntrac_validator.id
 
@@ -64,7 +64,7 @@ resource "aws_api_gateway_method" "llm_evaluate" {
 }
 
 resource "aws_api_gateway_integration" "llm_evaluate" {
-  rest_api_id = aws_api_gateway_rest_api.learntrac_api.id
+  rest_api_id = aws_api_gateway_rest_api.learntrac.id
   resource_id = aws_api_gateway_resource.llm_evaluate.id
   http_method = aws_api_gateway_method.llm_evaluate.http_method
 
@@ -74,7 +74,7 @@ resource "aws_api_gateway_integration" "llm_evaluate" {
 }
 
 resource "aws_api_gateway_method_response" "llm_evaluate" {
-  rest_api_id = aws_api_gateway_rest_api.learntrac_api.id
+  rest_api_id = aws_api_gateway_rest_api.learntrac.id
   resource_id = aws_api_gateway_resource.llm_evaluate.id
   http_method = aws_api_gateway_method.llm_evaluate.http_method
   status_code = "200"
@@ -90,14 +90,14 @@ resource "aws_api_gateway_method_response" "llm_evaluate" {
 
 # OPTIONS methods for CORS
 resource "aws_api_gateway_method" "options_llm_generate" {
-  rest_api_id   = aws_api_gateway_rest_api.learntrac_api.id
+  rest_api_id   = aws_api_gateway_rest_api.learntrac.id
   resource_id   = aws_api_gateway_resource.llm_generate.id
   http_method   = "OPTIONS"
   authorization = "NONE"
 }
 
 resource "aws_api_gateway_integration" "options_llm_generate" {
-  rest_api_id = aws_api_gateway_rest_api.learntrac_api.id
+  rest_api_id = aws_api_gateway_rest_api.learntrac.id
   resource_id = aws_api_gateway_resource.llm_generate.id
   http_method = aws_api_gateway_method.options_llm_generate.http_method
   type        = "MOCK"
@@ -108,7 +108,7 @@ resource "aws_api_gateway_integration" "options_llm_generate" {
 }
 
 resource "aws_api_gateway_method_response" "options_llm_generate" {
-  rest_api_id = aws_api_gateway_rest_api.learntrac_api.id
+  rest_api_id = aws_api_gateway_rest_api.learntrac.id
   resource_id = aws_api_gateway_resource.llm_generate.id
   http_method = aws_api_gateway_method.options_llm_generate.http_method
   status_code = "200"
@@ -121,7 +121,7 @@ resource "aws_api_gateway_method_response" "options_llm_generate" {
 }
 
 resource "aws_api_gateway_integration_response" "options_llm_generate" {
-  rest_api_id = aws_api_gateway_rest_api.learntrac_api.id
+  rest_api_id = aws_api_gateway_rest_api.learntrac.id
   resource_id = aws_api_gateway_resource.llm_generate.id
   http_method = aws_api_gateway_method.options_llm_generate.http_method
   status_code = aws_api_gateway_method_response.options_llm_generate.status_code
@@ -134,14 +134,14 @@ resource "aws_api_gateway_integration_response" "options_llm_generate" {
 }
 
 resource "aws_api_gateway_method" "options_llm_evaluate" {
-  rest_api_id   = aws_api_gateway_rest_api.learntrac_api.id
+  rest_api_id   = aws_api_gateway_rest_api.learntrac.id
   resource_id   = aws_api_gateway_resource.llm_evaluate.id
   http_method   = "OPTIONS"
   authorization = "NONE"
 }
 
 resource "aws_api_gateway_integration" "options_llm_evaluate" {
-  rest_api_id = aws_api_gateway_rest_api.learntrac_api.id
+  rest_api_id = aws_api_gateway_rest_api.learntrac.id
   resource_id = aws_api_gateway_resource.llm_evaluate.id
   http_method = aws_api_gateway_method.options_llm_evaluate.http_method
   type        = "MOCK"
@@ -152,7 +152,7 @@ resource "aws_api_gateway_integration" "options_llm_evaluate" {
 }
 
 resource "aws_api_gateway_method_response" "options_llm_evaluate" {
-  rest_api_id = aws_api_gateway_rest_api.learntrac_api.id
+  rest_api_id = aws_api_gateway_rest_api.learntrac.id
   resource_id = aws_api_gateway_resource.llm_evaluate.id
   http_method = aws_api_gateway_method.options_llm_evaluate.http_method
   status_code = "200"
@@ -165,7 +165,7 @@ resource "aws_api_gateway_method_response" "options_llm_evaluate" {
 }
 
 resource "aws_api_gateway_integration_response" "options_llm_evaluate" {
-  rest_api_id = aws_api_gateway_rest_api.learntrac_api.id
+  rest_api_id = aws_api_gateway_rest_api.learntrac.id
   resource_id = aws_api_gateway_resource.llm_evaluate.id
   http_method = aws_api_gateway_method.options_llm_evaluate.http_method
   status_code = aws_api_gateway_method_response.options_llm_evaluate.status_code
@@ -180,22 +180,22 @@ resource "aws_api_gateway_integration_response" "options_llm_evaluate" {
 # Learning paths endpoints
 # POST /api/v1/learning-paths
 resource "aws_api_gateway_method" "create_learning_path" {
-  rest_api_id   = aws_api_gateway_rest_api.learntrac_api.id
+  rest_api_id   = aws_api_gateway_rest_api.learntrac.id
   resource_id   = aws_api_gateway_resource.learning_paths.id
   http_method   = "POST"
-  authorization = "COGNITO_USER_POOLS"
-  authorizer_id = aws_api_gateway_authorizer.cognito.id
+  authorization = "NONE"  # Changed from COGNITO_USER_POOLS
+  # authorizer_id = aws_api_gateway_authorizer.cognito.id  # Cognito removed
 
-  authorization_scopes = [
-    "${aws_cognito_resource_server.learntrac_api.identifier}/write"
-  ]
+  # authorization_scopes = [
+  #   "${aws_cognito_resource_server.learntrac_api.identifier}/write"
+  # ]  # Cognito removed
 
   request_validator_id = aws_api_gateway_request_validator.learntrac_validator.id
 }
 
 # For now, using MOCK integration - replace with actual backend integration
 resource "aws_api_gateway_integration" "create_learning_path" {
-  rest_api_id = aws_api_gateway_rest_api.learntrac_api.id
+  rest_api_id = aws_api_gateway_rest_api.learntrac.id
   resource_id = aws_api_gateway_resource.learning_paths.id
   http_method = aws_api_gateway_method.create_learning_path.http_method
   type        = "MOCK"
@@ -208,7 +208,7 @@ resource "aws_api_gateway_integration" "create_learning_path" {
 }
 
 resource "aws_api_gateway_method_response" "create_learning_path" {
-  rest_api_id = aws_api_gateway_rest_api.learntrac_api.id
+  rest_api_id = aws_api_gateway_rest_api.learntrac.id
   resource_id = aws_api_gateway_resource.learning_paths.id
   http_method = aws_api_gateway_method.create_learning_path.http_method
   status_code = "200"
@@ -219,7 +219,7 @@ resource "aws_api_gateway_method_response" "create_learning_path" {
 }
 
 resource "aws_api_gateway_integration_response" "create_learning_path" {
-  rest_api_id = aws_api_gateway_rest_api.learntrac_api.id
+  rest_api_id = aws_api_gateway_rest_api.learntrac.id
   resource_id = aws_api_gateway_resource.learning_paths.id
   http_method = aws_api_gateway_method.create_learning_path.http_method
   status_code = aws_api_gateway_method_response.create_learning_path.status_code
@@ -238,15 +238,15 @@ resource "aws_api_gateway_integration_response" "create_learning_path" {
 
 # GET /api/v1/learning-paths/{pathId}
 resource "aws_api_gateway_method" "get_learning_path" {
-  rest_api_id   = aws_api_gateway_rest_api.learntrac_api.id
+  rest_api_id   = aws_api_gateway_rest_api.learntrac.id
   resource_id   = aws_api_gateway_resource.learning_paths_id.id
   http_method   = "GET"
-  authorization = "COGNITO_USER_POOLS"
-  authorizer_id = aws_api_gateway_authorizer.cognito.id
+  authorization = "NONE"  # Changed from COGNITO_USER_POOLS
+  # authorizer_id = aws_api_gateway_authorizer.cognito.id  # Cognito removed
 
-  authorization_scopes = [
-    "${aws_cognito_resource_server.learntrac_api.identifier}/read"
-  ]
+  # authorization_scopes = [
+  #   "${aws_cognito_resource_server.learntrac_api.identifier}/read"
+  # ]  # Cognito removed
 
   request_parameters = {
     "method.request.path.pathId" = true
@@ -255,7 +255,7 @@ resource "aws_api_gateway_method" "get_learning_path" {
 
 # MOCK integration for GET learning path
 resource "aws_api_gateway_integration" "get_learning_path" {
-  rest_api_id = aws_api_gateway_rest_api.learntrac_api.id
+  rest_api_id = aws_api_gateway_rest_api.learntrac.id
   resource_id = aws_api_gateway_resource.learning_paths_id.id
   http_method = aws_api_gateway_method.get_learning_path.http_method
   type        = "MOCK"
@@ -268,7 +268,7 @@ resource "aws_api_gateway_integration" "get_learning_path" {
 }
 
 resource "aws_api_gateway_method_response" "get_learning_path" {
-  rest_api_id = aws_api_gateway_rest_api.learntrac_api.id
+  rest_api_id = aws_api_gateway_rest_api.learntrac.id
   resource_id = aws_api_gateway_resource.learning_paths_id.id
   http_method = aws_api_gateway_method.get_learning_path.http_method
   status_code = "200"
@@ -279,7 +279,7 @@ resource "aws_api_gateway_method_response" "get_learning_path" {
 }
 
 resource "aws_api_gateway_integration_response" "get_learning_path" {
-  rest_api_id = aws_api_gateway_rest_api.learntrac_api.id
+  rest_api_id = aws_api_gateway_rest_api.learntrac.id
   resource_id = aws_api_gateway_resource.learning_paths_id.id
   http_method = aws_api_gateway_method.get_learning_path.http_method
   status_code = aws_api_gateway_method_response.get_learning_path.status_code

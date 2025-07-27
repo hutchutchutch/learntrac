@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field, validator
 import logging
 import uuid
 
-from ..auth.jwt_handler import get_current_user, AuthenticatedUser
+from ..auth.modern_session_handler import get_current_user, get_current_user_required, AuthenticatedUser
 from ..services.ticket_service import ticket_service, TicketCreationError
 
 logger = logging.getLogger(__name__)

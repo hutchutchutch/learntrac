@@ -24,8 +24,8 @@ resource "aws_cloudwatch_dashboard" "learntrac_dashboard" {
           region = var.aws_region
           title  = "API Gateway Metrics"
           dimensions = {
-            ApiName = aws_api_gateway_rest_api.learntrac_api.name
-            Stage   = aws_api_gateway_stage.learntrac_stage.stage_name
+            ApiName = aws_api_gateway_rest_api.learntrac.name
+            Stage   = aws_api_gateway_stage.learntrac.stage_name
           }
         }
       },
@@ -90,8 +90,8 @@ resource "aws_cloudwatch_dashboard" "learntrac_dashboard" {
           region = var.aws_region
           title  = "API Gateway Latency"
           dimensions = {
-            ApiName = aws_api_gateway_rest_api.learntrac_api.name
-            Stage   = aws_api_gateway_stage.learntrac_stage.stage_name
+            ApiName = aws_api_gateway_rest_api.learntrac.name
+            Stage   = aws_api_gateway_stage.learntrac.stage_name
           }
         }
       }
@@ -122,7 +122,7 @@ resource "aws_cloudwatch_query_definition" "api_gateway_errors" {
   name = "${local.project_prefix}-api-gateway-errors"
 
   log_group_names = [
-    aws_cloudwatch_log_group.api_gateway_logs.name
+    aws_cloudwatch_log_group.api_gateway.name
   ]
 
   query_string = <<-EOT

@@ -8,7 +8,7 @@ from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 import logging
 
-from ..auth.jwt_handler import get_current_user, AuthenticatedUser
+from ..auth.modern_session_handler import get_current_user, get_current_user_required, AuthenticatedUser
 from ..services.llm_service import llm_service
 
 logger = logging.getLogger(__name__)
@@ -359,11 +359,12 @@ async def get_llm_stats(
         raise HTTPException(status_code=403, detail="Admin permissions required")
     
     try:
-        from ..services.redis_client import redis_cache
+        # Redis removed - skip cache statistics
+        # from ..services.redis_client import redis_cache
         
         # Get cache statistics
-        cache_keys = await redis_cache.redis.keys("llm_question:*")
-        cache_count = len(cache_keys)
+        # cache_keys = await redis_cache.redis.keys("llm_question:*")
+        cache_count = 0  # Redis removed
         
         return {
             "circuit_breaker": {

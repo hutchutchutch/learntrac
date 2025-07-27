@@ -4,11 +4,11 @@ from contextlib import asynccontextmanager
 import logging
 import os
 
-from .config import settings
-from .routers import learning, chat, analytics, voice, vector_search, llm, tickets, evaluation, trac
+from .config import settings, get_allowed_origins
+from .routers import learning, chat, analytics, voice, vector_search, llm, tickets, evaluation, trac, auth
 from .middleware import TimingMiddleware, AuthMiddleware
 from .db.database import db_manager
-from .services.redis_client import redis_cache
+# Redis removed - no longer needed
 from .services.neo4j_client import neo4j_client
 from .services.neo4j_aura_client import neo4j_aura_client
 from .services.embedding_service import embedding_service
@@ -35,9 +35,7 @@ async def lifespan(app: FastAPI):
     await db_manager.initialize()
     app.state.db_manager = db_manager
     
-    # Initialize Redis
-    await redis_cache.initialize()
-    app.state.redis_cache = redis_cache
+    # Redis removed - no longer needed
     
     # Initialize Neo4j (only if URI is provided)
     await neo4j_client.initialize()
@@ -73,7 +71,7 @@ async def lifespan(app: FastAPI):
     # Shutdown
     logger.info("Shutting down LearnTrac API...")
     await db_manager.close()
-    await redis_cache.close()
+    # Redis removed - no longer needed
     await neo4j_client.close()
     await neo4j_aura_client.close()
     await llm_service.close()
@@ -89,7 +87,7 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins,
+    allow_origins=get_allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -100,6 +98,7 @@ app.add_middleware(TimingMiddleware)
 app.add_middleware(AuthMiddleware)
 
 # Include routers
+app.include_router(auth.router)  # Authentication router (no prefix, uses /auth)
 app.include_router(learning.router, prefix="/api/learntrac", tags=["learning"])
 app.include_router(vector_search.router, prefix="/api/learntrac/vector", tags=["vector-search"])
 app.include_router(llm.router, prefix="/api/learntrac/llm", tags=["llm"])
@@ -117,10 +116,6 @@ async def health_check():
         # Check database
         await db_manager.execute_query("SELECT 1")
         db_status = "healthy"
-        
-        # Check Redis
-        await redis_cache.redis.ping()
-        redis_status = "healthy"
         
         # Check Neo4j (optional)
         neo4j_status = "not_configured"
@@ -145,7 +140,6 @@ async def health_check():
             "version": "1.0.0",
             "components": {
                 "database": db_status,
-                "redis": redis_status,
                 "neo4j": neo4j_status,
                 "llm": llm_status,
                 "tickets": ticket_status,
@@ -158,7 +152,7 @@ async def health_check():
 
 @app.get("/api/learntrac/health")
 async def api_health():
-    """LearnTrac-specific health check"
+    """LearnTrac-specific health check"""
     return {
         "status": "healthy",
         "service": "learntrac-api",

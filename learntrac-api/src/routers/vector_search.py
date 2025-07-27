@@ -8,10 +8,10 @@ from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 import logging
 
-from ..auth.jwt_handler import get_current_user, AuthenticatedUser
+from ..auth.modern_session_handler import get_current_user, get_current_user_required, AuthenticatedUser
 from ..services.neo4j_aura_client import neo4j_aura_client
 from ..services.embedding_service import embedding_service
-from ..services.redis_client import redis_cache
+# Redis removed - from ..services.redis_client import redis_cache
 
 logger = logging.getLogger(__name__)
 
@@ -65,11 +65,11 @@ async def vector_search(
             if not query_embedding:
                 raise HTTPException(status_code=500, detail="Failed to generate embedding")
         
-        # Check cache first
-        cache_key = f"vector_search:{hash(str(query_embedding))}:{request.min_score}:{request.limit}"
-        cached_results = await redis_cache.get_json(cache_key)
-        if cached_results:
-            return cached_results
+        # Redis removed - skip cache check
+        # cache_key = f"vector_search:{hash(str(query_embedding))}:{request.min_score}:{request.limit}"
+        # cached_results = await redis_cache.get_json(cache_key)
+        # if cached_results:
+        #     return cached_results
         
         # Perform vector search
         results = await neo4j_aura_client.vector_search(
@@ -97,8 +97,8 @@ async def vector_search(
             "min_score_used": request.min_score
         }
         
-        # Cache results for 1 hour
-        await redis_cache.set_json(cache_key, response, 3600)
+        # Redis removed - skip caching
+        # await redis_cache.set_json(cache_key, response, 3600)
         
         return response
         

@@ -19,25 +19,7 @@ output "security_group_id" {
   value       = aws_security_group.rds.id
 }
 
-output "cognito_user_pool_id" {
-  value = aws_cognito_user_pool.learntrac_users.id
-}
-
-output "cognito_client_id" {
-  value = aws_cognito_user_pool_client.learntrac_client.id
-}
-
-output "cognito_user_pool_endpoint" {
-  value = aws_cognito_user_pool.learntrac_users.endpoint
-}
-
-output "cognito_domain" {
-  value = aws_cognito_user_pool_domain.learntrac_domain.domain
-}
-
-output "cognito_domain_url" {
-  value = "https://${aws_cognito_user_pool_domain.learntrac_domain.domain}.auth.${var.aws_region}.amazoncognito.com"
-}
+# Note: API Gateway outputs are defined in api-gateway-enhanced.tf
 
 # ALB Outputs
 output "alb_dns_name" {

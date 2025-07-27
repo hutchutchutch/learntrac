@@ -11,23 +11,56 @@ until python3 -c "
 import asyncpg
 import asyncio
 import os
+import time
+from urllib.parse import urlparse, quote_plus
 
 async def check_db():
     try:
-        conn = await asyncpg.connect(os.environ.get('DATABASE_URL', ''))
+        db_url = os.environ.get('DATABASE_URL', '')
+        
+        # Convert postgres:// to postgresql:// for asyncpg
+        if db_url.startswith('postgres://'):
+            db_url = db_url.replace('postgres://', 'postgresql://', 1)
+        
+        # Manual parsing for URLs with special characters
+        if '://' in db_url and '@' in db_url:
+            scheme_rest = db_url.split('://', 1)
+            scheme = scheme_rest[0]
+            rest = scheme_rest[1]
+            
+            userpass_host = rest.split('@', 1)
+            if len(userpass_host) == 2:
+                userpass = userpass_host[0]
+                host_rest = userpass_host[1]
+                
+                if ':' in userpass:
+                    username = userpass.split(':', 1)[0]
+                    password = userpass.split(':', 1)[1]
+                    
+                    # Encode password if it has special characters
+                    if any(c in password for c in '{}[]()&%'):
+                        password = quote_plus(password)
+                    
+                    # Rebuild URL
+                    db_url = f'{scheme}://{username}:{password}@{host_rest}'
+        
+        conn = await asyncpg.connect(db_url)
         await conn.close()
         return True
-    except:
+    except Exception as e:
+        print(f'Connection error: {e}')
         return False
 
-loop = asyncio.get_event_loop()
-max_attempts = 30
-for i in range(max_attempts):
-    if loop.run_until_complete(check_db()):
-        print('PostgreSQL is ready')
-        exit(0)
-    asyncio.sleep(2)
-exit(1)
+async def main():
+    max_attempts = 30
+    for i in range(max_attempts):
+        if await check_db():
+            print('PostgreSQL is ready')
+            exit(0)
+        await asyncio.sleep(2)
+    exit(1)
+
+asyncio.run(main())
 "; do
     echo "PostgreSQL not ready, retrying..."
     sleep 2
@@ -41,7 +74,7 @@ import os
 import time
 
 uri = os.environ.get('NEO4J_URI', '')
-user = os.environ.get('NEO4J_USER', '')
+user = os.environ.get('NEO4J_USERNAME', '')
 password = os.environ.get('NEO4J_PASSWORD', '')
 
 max_attempts = 30
@@ -52,35 +85,17 @@ for i in range(max_attempts):
         driver.close()
         print('Neo4j is ready')
         exit(0)
-    except:
+    except Exception as e:
+        print(f'Attempt {i+1}/{max_attempts}: {e}')
         time.sleep(2)
+print('Neo4j connection failed after all attempts')
 exit(1)
 "; do
     echo "Neo4j not ready, retrying..."
     sleep 2
 done
 
-# Wait for Redis to be ready
-echo "Waiting for Redis..."
-until python3 -c "
-import redis
-import os
-
-redis_url = os.environ.get('REDIS_URL', '')
-max_attempts = 30
-for i in range(max_attempts):
-    try:
-        r = redis.from_url(redis_url)
-        r.ping()
-        print('Redis is ready')
-        exit(0)
-    except:
-        time.sleep(2)
-exit(1)
-"; do
-    echo "Redis not ready, retrying..."
-    sleep 2
-done
+# Redis removed - no longer needed
 
 # Run database migrations
 echo "Running database migrations..."

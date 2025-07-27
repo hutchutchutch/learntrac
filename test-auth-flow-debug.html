@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LearnTrac Authentication Test - Enhanced Debug</title>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #fafafa;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .success { 
+            color: #28a745; 
+            background: #d4edda;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .error { 
+            color: #dc3545; 
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .warning {
+            color: #856404;
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .info {
+            color: #004085;
+            background: #d1ecf1;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            overflow-x: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        .log-container {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .log-entry {
+            font-family: monospace;
+            font-size: 12px;
+            padding: 2px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .log-timestamp {
+            color: #6c757d;
+            margin-right: 10px;
+        }
+        .log-error { color: #dc3545; }
+        .log-success { color: #28a745; }
+        .log-info { color: #17a2b8; }
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .status-ok { background: #28a745; }
+        .status-error { background: #dc3545; }
+        .status-unknown { background: #6c757d; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #f8f9fa;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>LearnTrac Authentication Test - Enhanced Debug</h1>
+        
+        <div class="test-section">
+            <h2>System Status Check</h2>
+            <button onclick="checkSystemStatus()">Check All Systems</button>
+            <div id="system-status"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>1. Configuration Validation</h2>
+            <button onclick="validateConfig()">Validate Configuration</button>
+            <div id="config-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>2. Test Cognito Direct Authentication</h2>
+            <p>This tests the direct Cognito authentication flow with debugging:</p>
+            <button onclick="testCognitoDirect()">Generate Auth URL</button>
+            <button onclick="testCognitoConnectivity()">Test Cognito Connectivity</button>
+            <div id="cognito-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>3. Test Learning API Auth Endpoints</h2>
+            <p>Test each authentication endpoint individually:</p>
+            <button onclick="testAPIEndpoint('/')">Test API Root</button>
+            <button onclick="testAPIEndpoint('/auth/login')">Test Login Endpoint</button>
+            <button onclick="testAPIEndpoint('/auth/verify')">Test Verify Endpoint</button>
+            <button onclick="testAPIEndpoint('/auth/user')">Test User Endpoint</button>
+            <div id="api-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>4. Full Authentication Flow Test</h2>
+            <button onclick="startFullAuthFlow()">Start Full Auth Flow</button>
+            <button onclick="window.open('http://localhost:8001/auth/login?redirect=/trac/wiki', '_blank')">Open Auth in New Tab</button>
+            <div id="flow-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>5. Debug Console</h2>
+            <button onclick="clearLogs()">Clear Logs</button>
+            <button onclick="exportLogs()">Export Logs</button>
+            <div class="log-container" id="debug-log"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Configuration
+        const config = {
+            domain: 'hutch-learntrac-dev-auth',
+            region: 'us-east-2',
+            clientId: '5adkv019v4rcu6o87ffg46ep02',
+            userPoolId: 'us-east-2_IvxzMrWwg',
+            redirectUri: 'http://localhost:8001/auth/callback',
+            apiUrl: 'http://localhost:8001'
+        };
+        
+        // Debug logging
+        const logs = [];
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toISOString();
+            const entry = { timestamp, message, type };
+            logs.push(entry);
+            
+            const logContainer = document.getElementById('debug-log');
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.innerHTML = `
+                <span class="log-timestamp">${timestamp.split('T')[1].split('.')[0]}</span>
+                <span class="log-${type}">${message}</span>
+            `;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        function clearLogs() {
+            logs.length = 0;
+            document.getElementById('debug-log').innerHTML = '';
+            log('Logs cleared', 'info');
+        }
+        
+        function exportLogs() {
+            const dataStr = JSON.stringify(logs, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `auth-debug-logs-${Date.now()}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+        
+        async function checkSystemStatus() {
+            log('Starting system status check...', 'info');
+            const statusDiv = document.getElementById('system-status');
+            statusDiv.innerHTML = '<div class="info">Checking systems...</div>';
+            
+            const checks = [
+                { name: 'Learning API', url: `${config.apiUrl}/`, expected: 'json' },
+                { name: 'Auth Service', url: `${config.apiUrl}/auth/verify`, expected: 'json' },
+                { name: 'Trac Service', url: 'http://localhost:8000/trac', expected: 'html' },
+            ];
+            
+            let results = '<table><tr><th>Service</th><th>Status</th><th>Details</th></tr>';
+            
+            for (const check of checks) {
+                try {
+                    log(`Checking ${check.name} at ${check.url}`, 'info');
+                    const response = await fetch(check.url, { 
+                        credentials: 'include',
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    
+                    const status = response.ok ? 'ok' : 'error';
+                    const statusText = response.ok ? 'Online' : `Error (${response.status})`;
+                    
+                    results += `
+                        <tr>
+                            <td>${check.name}</td>
+                            <td><span class="status-indicator status-${status}"></span>${statusText}</td>
+                            <td>${response.statusText}</td>
+                        </tr>
+                    `;
+                    
+                    log(`${check.name}: ${statusText}`, response.ok ? 'success' : 'error');
+                } catch (err) {
+                    results += `
+                        <tr>
+                            <td>${check.name}</td>
+                            <td><span class="status-indicator status-error"></span>Offline</td>
+                            <td>${err.message}</td>
+                        </tr>
+                    `;
+                    log(`${check.name}: Failed - ${err.message}`, 'error');
+                }
+            }
+            
+            results += '</table>';
+            statusDiv.innerHTML = results;
+        }
+        
+        function validateConfig() {
+            log('Validating configuration...', 'info');
+            const resultDiv = document.getElementById('config-result');
+            
+            const validation = [];
+            
+            // Check each config value
+            for (const [key, value] of Object.entries(config)) {
+                validation.push({
+                    key,
+                    value,
+                    valid: value && value.length > 0
+                });
+            }
+            
+            // Construct URLs
+            const cognitoBaseUrl = `https://${config.domain}.auth.${config.region}.amazoncognito.com`;
+            const jwksUrl = `https://cognito-idp.${config.region}.amazonaws.com/${config.userPoolId}/.well-known/jwks.json`;
+            
+            let html = '<h3>Configuration Values:</h3><pre>';
+            html += JSON.stringify(config, null, 2);
+            html += '</pre>';
+            
+            html += '<h3>Constructed URLs:</h3><pre>';
+            html += `Cognito Base: ${cognitoBaseUrl}\n`;
+            html += `JWKS URL: ${jwksUrl}\n`;
+            html += `Auth URL: ${cognitoBaseUrl}/login\n`;
+            html += `Token URL: ${cognitoBaseUrl}/oauth2/token`;
+            html += '</pre>';
+            
+            const allValid = validation.every(v => v.valid);
+            if (allValid) {
+                html = '<div class="success">Configuration is valid!</div>' + html;
+                log('Configuration validated successfully', 'success');
+            } else {
+                html = '<div class="error">Configuration has missing values!</div>' + html;
+                log('Configuration validation failed', 'error');
+            }
+            
+            resultDiv.innerHTML = html;
+        }
+        
+        function testCognitoDirect() {
+            log('Generating Cognito auth URL...', 'info');
+            const authUrl = `https://${config.domain}.auth.${config.region}.amazoncognito.com/login?` +
+                `response_type=code&` +
+                `client_id=${config.clientId}&` +
+                `redirect_uri=${encodeURIComponent(config.redirectUri)}&` +
+                `scope=openid+email+profile&` +
+                `state=/trac/wiki`;
+            
+            document.getElementById('cognito-result').innerHTML = 
+                `<div class="info">Cognito Auth URL Generated:</div>` +
+                `<pre>${authUrl}</pre>` +
+                `<p><a href="${authUrl}" target="_blank" class="button">Open in new tab</a></p>` +
+                `<p>If you see "An error was encountered with the requested page", check:</p>` +
+                `<ul>
+                    <li>Is the redirect URI registered in Cognito?</li>
+                    <li>Is the client ID correct?</li>
+                    <li>Is the Cognito domain correct?</li>
+                </ul>`;
+            
+            log(`Auth URL: ${authUrl}`, 'info');
+        }
+        
+        async function testCognitoConnectivity() {
+            log('Testing Cognito connectivity...', 'info');
+            const resultDiv = document.getElementById('cognito-result');
+            resultDiv.innerHTML = '<div class="info">Testing Cognito endpoints...</div>';
+            
+            const jwksUrl = `https://cognito-idp.${config.region}.amazonaws.com/${config.userPoolId}/.well-known/jwks.json`;
+            
+            try {
+                log(`Fetching JWKS from ${jwksUrl}`, 'info');
+                const response = await fetch(jwksUrl);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = 
+                        '<div class="success">Cognito JWKS endpoint is accessible!</div>' +
+                        '<pre>' + JSON.stringify(data, null, 2).substring(0, 500) + '...</pre>';
+                    log('JWKS fetch successful', 'success');
+                } else {
+                    resultDiv.innerHTML = 
+                        '<div class="error">Failed to fetch JWKS: ' + response.statusText + '</div>';
+                    log(`JWKS fetch failed: ${response.statusText}`, 'error');
+                }
+            } catch (err) {
+                resultDiv.innerHTML = 
+                    '<div class="error">Network error accessing Cognito: ' + err.message + '</div>';
+                log(`Cognito connectivity test failed: ${err.message}`, 'error');
+            }
+        }
+        
+        async function testAPIEndpoint(endpoint) {
+            log(`Testing API endpoint: ${endpoint}`, 'info');
+            const resultDiv = document.getElementById('api-result');
+            
+            try {
+                const url = `${config.apiUrl}${endpoint}`;
+                log(`Fetching ${url}`, 'info');
+                
+                const response = await fetch(url, {
+                    credentials: 'include',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                const responseText = await response.text();
+                let data;
+                
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    data = responseText;
+                }
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = 
+                        `<div class="success">Endpoint ${endpoint} responded successfully!</div>` +
+                        '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                    log(`${endpoint} success: ${response.status}`, 'success');
+                } else {
+                    resultDiv.innerHTML = 
+                        `<div class="error">Endpoint ${endpoint} returned error ${response.status}</div>` +
+                        '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                    log(`${endpoint} error: ${response.status}`, 'error');
+                }
+            } catch (err) {
+                resultDiv.innerHTML = 
+                    `<div class="error">Failed to reach ${endpoint}: ${err.message}</div>` +
+                    '<p>Make sure the auth service is running on port 8001</p>';
+                log(`${endpoint} failed: ${err.message}`, 'error');
+            }
+        }
+        
+        function startFullAuthFlow() {
+            log('Starting full authentication flow...', 'info');
+            const resultDiv = document.getElementById('flow-result');
+            
+            resultDiv.innerHTML = 
+                '<div class="info">Starting authentication flow...</div>' +
+                '<p>You will be redirected to:</p>' +
+                '<ol>' +
+                '<li>Learning API login endpoint</li>' +
+                '<li>Cognito login page</li>' +
+                '<li>Back to Learning API callback</li>' +
+                '<li>Finally to Trac</li>' +
+                '</ol>';
+            
+            setTimeout(() => {
+                window.location.href = `${config.apiUrl}/auth/login?redirect=/trac/wiki`;
+            }, 2000);
+        }
+        
+        // Initialize
+        log('Auth debug page loaded', 'info');
+        log(`Config: ${JSON.stringify(config)}`, 'info');
+    </script>
+</body>
+</html>

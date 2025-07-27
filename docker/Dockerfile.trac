@@ -1,0 +1,34 @@
+FROM python:2.7
+
+# Fix Debian Buster EOL repositories
+RUN echo "deb http://archive.debian.org/debian buster main" > /etc/apt/sources.list && \
+    echo "deb http://archive.debian.org/debian-security buster/updates main" >> /etc/apt/sources.list && \
+    echo "deb http://archive.debian.org/debian buster-updates main" >> /etc/apt/sources.list
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    libffi-dev \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages for Cognito auth
+RUN pip install --no-cache-dir \
+    PyJWT==1.7.1 \
+    cryptography==2.8
+
+# Create directories
+RUN mkdir -p /trac /plugins /custom-config
+
+# Copy entrypoint script
+COPY trac-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/trac-entrypoint.sh
+
+# Set working directory
+WORKDIR /trac
+
+# Expose port
+EXPOSE 8000
+
+# Set entrypoint
+ENTRYPOINT ["trac-entrypoint.sh"]

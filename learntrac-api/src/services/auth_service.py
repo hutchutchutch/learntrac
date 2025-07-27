@@ -15,12 +15,12 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 import hashlib
-import jwt
+from jose import jwt
 from passlib.context import CryptContext
 import asyncio
 
 from ..db.database import DatabaseManager
-from ..services.redis_client import RedisCache
+# Redis removed - from ..services.redis_client import RedisCache
 from ..config import settings
 
 logger = logging.getLogger(__name__)
@@ -79,7 +79,7 @@ class AuthService:
     def __init__(
         self,
         db_manager: DatabaseManager,
-        redis_cache: RedisCache,
+        # redis_cache: RedisCache,  # Redis removed
         jwt_secret: Optional[str] = None,
         jwt_algorithm: str = "HS256",
         access_token_expire_minutes: int = 30,
@@ -90,14 +90,13 @@ class AuthService:
         
         Args:
             db_manager: Database manager
-            redis_cache: Redis cache for sessions
             jwt_secret: Secret key for JWT
             jwt_algorithm: JWT signing algorithm
             access_token_expire_minutes: Access token expiration
             refresh_token_expire_days: Refresh token expiration
         """
         self.db_manager = db_manager
-        self.redis_cache = redis_cache
+        # self.redis_cache = redis_cache  # Redis removed
         self.jwt_secret = jwt_secret or settings.jwt_secret_key
         self.jwt_algorithm = jwt_algorithm
         self.access_token_expire = timedelta(minutes=access_token_expire_minutes)

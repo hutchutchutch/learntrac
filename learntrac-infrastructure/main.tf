@@ -141,242 +141,56 @@ resource "aws_secretsmanager_secret_version" "db_password" {
   })
 }
 
-# IAM role for Lambda (moved before Lambda function)
-resource "aws_iam_role" "lambda_cognito" {
-  name = "${local.project_prefix}-lambda-cognito-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
-      Principal = {
-        Service = "lambda.amazonaws.com"
-      }
-    }]
-  })
-
-  tags = local.common_tags
-}
-
-# Attach basic Lambda execution policy
-resource "aws_iam_role_policy_attachment" "lambda_cognito_basic" {
-  role       = aws_iam_role.lambda_cognito.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-}
-
-# Create Lambda for pre-token generation (moved before User Pool)
-resource "aws_lambda_function" "cognito_pre_token_generation" {
-  filename         = "lambda/cognito-pre-token-generation.zip"
-  function_name    = "${local.project_prefix}-cognito-pre-token"
-  role            = aws_iam_role.lambda_cognito.arn
-  handler         = "cognito-pre-token-generation.handler"  # Fixed: should be filename.function_name
-  runtime         = "python3.11"
-  timeout         = 10
-  source_code_hash = filebase64sha256("lambda/cognito-pre-token-generation.zip")
-
-  environment {
-    variables = {
-      ENVIRONMENT = var.environment
-    }
-  }
-
-  tags = merge(local.common_tags, {
-    Name = "${local.project_prefix}-cognito-pre-token-lambda"
-  })
-}
-
-# AWS Cognito User Pool for LearnTrac
-resource "aws_cognito_user_pool" "learntrac_users" {
-  name = "${local.project_prefix}-users"
-
-  # Password policy
-  password_policy {
-    minimum_length    = 8
-    require_lowercase = true
-    require_numbers   = true
-    require_symbols   = true
-    require_uppercase = true
-  }
-
-  # User attributes
-  schema {
-    attribute_data_type = "String"
-    name                = "email"
-    required            = true
-    mutable             = true
-  }
-
-  schema {
-    attribute_data_type = "String"
-    name                = "name"
-    required            = true
-    mutable             = true
-  }
-
-  schema {
-    attribute_data_type = "String"
-    name                = "role"
-    mutable             = true
-  }
-
-  # Lambda configuration
-  lambda_config {
-    pre_token_generation = aws_lambda_function.cognito_pre_token_generation.arn
-  }
-
-  # Account recovery
-  account_recovery_setting {
-    recovery_mechanism {
-      name     = "verified_email"
-      priority = 1
-    }
-  }
-
-  # Email configuration
-  auto_verified_attributes = ["email"]
-  
-  tags = merge(local.common_tags, {
-    Name = "${local.project_prefix}-user-pool"
-  })
-
-  lifecycle {
-    ignore_changes = [schema]
-  }
-}
-
-# Cognito Resource Server (moved outside User Pool)
-resource "aws_cognito_resource_server" "learntrac_api" {
-  identifier = "${local.project_prefix}-api"
-  name       = "${local.project_prefix}-api"
-  user_pool_id = aws_cognito_user_pool.learntrac_users.id
-
-  scope {
-    scope_name        = "read"
-    scope_description = "Read access to LearnTrac API"
-  }
-
-  scope {
-    scope_name        = "write"
-    scope_description = "Write access to LearnTrac API"
-  }
-
-  scope {
-    scope_name        = "admin"
-    scope_description = "Admin access to LearnTrac API"
-  }
-}
-
-# User Pool Client (fixed for OAuth flow compatibility)
-resource "aws_cognito_user_pool_client" "learntrac_client" {
-  name         = "${local.project_prefix}-client"
-  user_pool_id = aws_cognito_user_pool.learntrac_users.id
-
-  # OAuth settings
-  allowed_oauth_flows_user_pool_client = true
-  allowed_oauth_flows                  = ["code", "implicit"]  # Removed client_credentials
-  allowed_oauth_scopes                 = [
-    "email", 
-    "openid", 
-    "profile",
-    "${aws_cognito_resource_server.learntrac_api.identifier}/read",
-    "${aws_cognito_resource_server.learntrac_api.identifier}/write",
-    "${aws_cognito_resource_server.learntrac_api.identifier}/admin"
-  ]
-  
-  callback_urls                = ["http://localhost:8000/auth/callback"]
-  logout_urls                   = ["http://localhost:8000/logout"]
-  supported_identity_providers  = ["COGNITO"]
-
-  # Token validity
-  refresh_token_validity = 30  # days
-  access_token_validity  = 1   # hours
-  id_token_validity      = 1   # hours
-
-  # Security
-  prevent_user_existence_errors = "ENABLED"
-  enable_token_revocation      = true
-  
-  explicit_auth_flows = [
-    "ALLOW_USER_PASSWORD_AUTH",
-    "ALLOW_REFRESH_TOKEN_AUTH"
-  ]
-}
-
-# Create admin user group
-resource "aws_cognito_user_group" "admins" {
-  name         = "admins"
-  user_pool_id = aws_cognito_user_pool.learntrac_users.id
-  description  = "LearnTrac administrators"
-  precedence   = 1
-}
-
-# Create instructor group
-resource "aws_cognito_user_group" "instructors" {
-  name         = "instructors"
-  user_pool_id = aws_cognito_user_pool.learntrac_users.id
-  description  = "LearnTrac instructors"
-  precedence   = 2
-}
-
-# Create student group
-resource "aws_cognito_user_group" "students" {
-  name         = "students"
-  user_pool_id = aws_cognito_user_pool.learntrac_users.id
-  description  = "LearnTrac students"
-  precedence   = 3
-}
-
-# Cognito Domain
-resource "aws_cognito_user_pool_domain" "learntrac_domain" {
-  domain       = "${local.project_prefix}-auth"
-  user_pool_id = aws_cognito_user_pool.learntrac_users.id
-}
-
-# Grant Cognito permission to invoke Lambda
-resource "aws_lambda_permission" "cognito_invoke" {
-  statement_id  = "AllowCognitoInvoke"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.cognito_pre_token_generation.function_name
-  principal     = "cognito-idp.amazonaws.com"
-  source_arn    = aws_cognito_user_pool.learntrac_users.arn
-}
-
-# API Gateway for REST API
-resource "aws_api_gateway_rest_api" "learntrac_api" {
+# API Gateway REST API for LearnTrac (without Cognito authorizer)
+resource "aws_api_gateway_rest_api" "learntrac" {
   name        = "${local.project_prefix}-api"
-  description = "LearnTrac API with Cognito authentication"
+  description = "API Gateway for LearnTrac services - ${var.environment}"
+
+  endpoint_configuration {
+    types = ["REGIONAL"]
+  }
 
   tags = merge(local.common_tags, {
     Name = "${local.project_prefix}-api-gateway"
   })
 }
 
-# Cognito authorizer
-resource "aws_api_gateway_authorizer" "cognito" {
-  name            = "${local.project_prefix}-cognito-authorizer"
-  rest_api_id     = aws_api_gateway_rest_api.learntrac_api.id
-  type            = "COGNITO_USER_POOLS"
-  provider_arns   = [aws_cognito_user_pool.learntrac_users.arn]
-  identity_source = "method.request.header.Authorization"
-}
+# Note: API Gateway deployment moved to api-gateway-enhanced.tf 
+# where methods are defined to ensure deployment has methods
 
-# Store Cognito configuration
-resource "aws_secretsmanager_secret" "cognito_config" {
-  name        = "${local.project_prefix}-cognito-config"
-  description = "Cognito configuration for ${var.project_name}"
+# API Gateway Stage  
+resource "aws_api_gateway_stage" "learntrac" {
+  deployment_id = aws_api_gateway_deployment.learntrac.id
+  rest_api_id   = aws_api_gateway_rest_api.learntrac.id
+  stage_name    = var.environment
+  
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.api_gateway.arn
+    format = jsonencode({
+      requestId      = "$context.requestId"
+      ip            = "$context.identity.sourceIp"
+      requestTime   = "$context.requestTime"
+      httpMethod    = "$context.httpMethod"
+      resourcePath  = "$context.resourcePath"
+      status        = "$context.status"
+      protocol      = "$context.protocol"
+      responseLength = "$context.responseLength"
+    })
+  }
   
   tags = merge(local.common_tags, {
-    Name = "${local.project_prefix}-cognito-secret"
+    Name = "${local.project_prefix}-api-stage-${var.environment}"
   })
 }
 
-resource "aws_secretsmanager_secret_version" "cognito_config" {
-  secret_id = aws_secretsmanager_secret.cognito_config.id
-  secret_string = jsonencode({
-    user_pool_id    = aws_cognito_user_pool.learntrac_users.id
-    client_id       = aws_cognito_user_pool_client.learntrac_client.id
-    domain          = aws_cognito_user_pool_domain.learntrac_domain.domain
-    region          = var.aws_region
+# CloudWatch Log Group for API Gateway
+resource "aws_cloudwatch_log_group" "api_gateway" {
+  name              = "/aws/api-gateway/${local.project_prefix}"
+  retention_in_days = var.environment == "prod" ? 30 : 7
+  
+  tags = merge(local.common_tags, {
+    Name = "${local.project_prefix}-api-logs"
   })
 }
+
+# Note: ECR repositories are defined in ecr.tf

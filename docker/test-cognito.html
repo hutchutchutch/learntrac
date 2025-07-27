@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Cognito Redirect</title>
+    <meta charset="utf-8">
+</head>
+<body>
+    <h1>Cognito Authentication Test</h1>
+    <p>Click the button below to test the Cognito authentication redirect:</p>
+    <button onclick="testCognito()">Test Cognito Login</button>
+    
+    <div id="result" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc; display: none;">
+        <h3>Redirect URL:</h3>
+        <pre id="redirect-url"></pre>
+    </div>
+    
+    <script>
+        function testCognito() {
+            const cognitoDomain = 'hutch-learntrac-dev-auth';
+            const region = 'us-east-2';
+            const clientId = '5adkv019v4rcu6o87ffg46ep02';
+            const redirectUri = 'http://localhost:8000/auth/callback';
+            const state = '/trac/wiki';
+            
+            const authUrl = `https://${cognitoDomain}.auth.${region}.amazoncognito.com/login?` +
+                `response_type=code&` +
+                `client_id=${clientId}&` +
+                `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+                `scope=openid+email+profile&` +
+                `state=${encodeURIComponent(state)}`;
+            
+            document.getElementById('redirect-url').textContent = authUrl;
+            document.getElementById('result').style.display = 'block';
+            
+            if (confirm('Open Cognito login page?')) {
+                window.location.href = authUrl;
+            }
+        }
+    </script>
+</body>
+</html>

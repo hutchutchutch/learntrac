@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from pydantic import BaseModel, Field
 from uuid import UUID
 import logging
 
-from ..auth.jwt_handler import get_current_user, AuthenticatedUser, require_student
+from ..auth.modern_session_handler import get_current_user, get_current_user_required, AuthenticatedUser, require_student
 from ..db.database import get_db_connection
-from ..services.redis_client import redis_cache
+# Redis removed - from ..services.redis_client import redis_cache
 from ..services.neo4j_client import neo4j_client
 from ..services.embedding_service import embedding_service
 from ..services.generation_service import generation_service
@@ -38,11 +38,11 @@ class ProgressUpdate(BaseModel):
 
 
 class PracticeSubmission(BaseModel):
-    answers: List[Dict[str, any]]
+    answers: List[Dict[str, Any]]
     time_spent_seconds: int
 
 
-@router.get("/paths", response_model=List[Dict[str, any]])
+@router.get("/paths", response_model=List[Dict[str, Any]])
 async def get_learning_paths(
     active_only: bool = True,
     user: AuthenticatedUser = Depends(get_current_user),
@@ -160,11 +160,11 @@ async def get_concept(
     conn = Depends(get_db_connection)
 ):
     """Get detailed information about a specific concept"""
-    # Try cache first
-    cache_key = f"concept:{concept_id}"
-    cached = await redis_cache.get_json(cache_key)
-    if cached:
-        return ConceptResponse(**cached)
+    # Redis removed - skip cache check
+    # cache_key = f"concept:{concept_id}"
+    # cached = await redis_cache.get_json(cache_key)
+    # if cached:
+    #     return ConceptResponse(**cached)
     
     try:
         query = """
@@ -209,8 +209,8 @@ async def get_concept(
             "tags": row["tags"] or []
         }
         
-        # Cache for 1 hour
-        await redis_cache.set_json(cache_key, concept_data, 3600)
+        # Redis removed - skip caching
+        # await redis_cache.set_json(cache_key, concept_data, 3600)
         
         return ConceptResponse(**concept_data)
         

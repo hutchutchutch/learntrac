@@ -8,7 +8,7 @@ from typing import Dict, Any, Optional
 from pydantic import BaseModel, Field, validator
 import logging
 
-from ..auth.jwt_handler import get_current_user, AuthenticatedUser
+from ..auth.modern_session_handler import get_current_user, get_current_user_required, AuthenticatedUser
 from ..services.evaluation_service import evaluation_service
 
 logger = logging.getLogger(__name__)

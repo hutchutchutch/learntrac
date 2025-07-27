@@ -15,7 +15,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 
 from ..config import settings
-from .redis_client import redis_cache
+# Redis removed - from .redis_client import redis_cache
 
 logger = logging.getLogger(__name__)
 
@@ -95,12 +95,12 @@ class LLMService:
                 'expected_answer': None
             }
         
-        # Check cache first
-        cache_key = self._generate_cache_key(chunk_content, concept, difficulty, context, question_type)
-        cached_result = await redis_cache.get_json(cache_key)
-        if cached_result:
-            logger.info(f"Returning cached question for concept: {concept}")
-            return cached_result
+        # Redis removed - skip cache check
+        # cache_key = self._generate_cache_key(chunk_content, concept, difficulty, context, question_type)
+        # cached_result = await redis_cache.get_json(cache_key)
+        # if cached_result:
+        #     logger.info(f"Returning cached question for concept: {concept}")
+        #     return cached_result
         
         # Check circuit breaker
         if not self.circuit_breaker.can_execute():
@@ -127,8 +127,8 @@ class LLMService:
             
             # Validate question quality
             if self._validate_question_quality(parsed_result):
-                # Cache successful result
-                await redis_cache.set_json(cache_key, parsed_result, ttl=3600)  # 1 hour
+                # Redis removed - skip caching
+                # await redis_cache.set_json(cache_key, parsed_result, ttl=3600)  # 1 hour
                 self.circuit_breaker.record_success()
                 
                 logger.info(f"Successfully generated question for concept: {concept}")

@@ -96,14 +96,15 @@ resource "aws_secretsmanager_secret_version" "openai_api_key" {
 }
 
 # Lambda Layer for OpenAI SDK and dependencies
-resource "aws_lambda_layer_version" "openai_sdk" {
-  filename            = "lambda/layers/openai-sdk-layer.zip"
-  layer_name          = "${local.project_prefix}-openai-sdk"
-  compatible_runtimes = ["python3.11", "python3.10"]
-  description         = "OpenAI SDK and dependencies"
-
-  source_code_hash = filebase64sha256("lambda/layers/openai-sdk-layer.zip")
-}
+# Note: Lambda layer commented out - ZIP file needs to be created
+# resource "aws_lambda_layer_version" "openai_sdk" {
+#   filename            = "lambda/layers/openai-sdk-layer.zip"
+#   layer_name          = "${local.project_prefix}-openai-sdk"
+#   compatible_runtimes = ["python3.11", "python3.10"]
+#   description         = "OpenAI SDK and dependencies"
+# 
+#   source_code_hash = filebase64sha256("lambda/layers/openai-sdk-layer.zip")
+# }
 
 # Lambda function for question generation
 resource "aws_lambda_function" "llm_generate" {
@@ -116,7 +117,7 @@ resource "aws_lambda_function" "llm_generate" {
   memory_size     = 512
   source_code_hash = filebase64sha256("lambda/llm-generate.zip")
 
-  layers = [aws_lambda_layer_version.openai_sdk.arn]
+  # layers = [aws_lambda_layer_version.openai_sdk.arn]  # Commented out - layer needs to be created
 
   environment {
     variables = {
@@ -148,7 +149,7 @@ resource "aws_lambda_function" "llm_evaluate" {
   memory_size     = 512
   source_code_hash = filebase64sha256("lambda/llm-evaluate.zip")
 
-  layers = [aws_lambda_layer_version.openai_sdk.arn]
+  # layers = [aws_lambda_layer_version.openai_sdk.arn]  # Commented out - layer needs to be created
 
   environment {
     variables = {
@@ -194,7 +195,7 @@ resource "aws_lambda_permission" "llm_generate_apigateway" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.llm_generate.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_api_gateway_rest_api.learntrac_api.execution_arn}/*/*"
+  source_arn    = "${aws_api_gateway_rest_api.learntrac.execution_arn}/*/*"
 }
 
 resource "aws_lambda_permission" "llm_evaluate_apigateway" {
@@ -202,7 +203,7 @@ resource "aws_lambda_permission" "llm_evaluate_apigateway" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.llm_evaluate.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_api_gateway_rest_api.learntrac_api.execution_arn}/*/*"
+  source_arn    = "${aws_api_gateway_rest_api.learntrac.execution_arn}/*/*"
 }
 
 # Outputs

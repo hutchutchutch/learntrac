@@ -26,7 +26,7 @@ services:
     image: neo4j:5.12
     container_name: neo4j-dev
     environment:
-      - NEO4J_AUTH=neo4j/password
+      - NEO4J_AUTH=neo4j/8pQcA75CGQYcUNaZTHKYZSAo8tO9h-Z5oqkxk_G1c1o
       - NEO4J_dbms_memory_pagecache_size=1G
       - NEO4J_dbms_memory_heap_max__size=1G
     ports:

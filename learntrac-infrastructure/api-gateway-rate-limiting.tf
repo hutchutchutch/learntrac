@@ -17,8 +17,8 @@ resource "aws_api_gateway_usage_plan" "llm_plan" {
   description = "Usage plan for LLM endpoints with rate limiting"
 
   api_stages {
-    api_id = aws_api_gateway_rest_api.learntrac_api.id
-    stage  = aws_api_gateway_stage.learntrac_stage.stage_name
+    api_id = aws_api_gateway_rest_api.learntrac.id
+    stage  = aws_api_gateway_stage.learntrac.stage_name
   }
 
   quota_settings {
@@ -43,38 +43,21 @@ resource "aws_api_gateway_usage_plan_key" "llm_plan_key" {
   usage_plan_id = aws_api_gateway_usage_plan.llm_plan.id
 }
 
-# Method-level throttling for LLM generate endpoint
-resource "aws_api_gateway_method_settings" "llm_generate_settings" {
-  rest_api_id = aws_api_gateway_rest_api.learntrac_api.id
-  stage_name  = aws_api_gateway_stage.learntrac_stage.stage_name
-  method_path = "${aws_api_gateway_resource.llm_generate.path_part}/*"
+# General method settings for all API Gateway methods
+resource "aws_api_gateway_method_settings" "general_settings" {
+  rest_api_id = aws_api_gateway_rest_api.learntrac.id
+  stage_name  = aws_api_gateway_stage.learntrac.stage_name
+  method_path = "*/*"  # Apply to all methods in stage
 
-  settings = {
+  settings {
     metrics_enabled        = true
     logging_level         = var.environment == "prod" ? "ERROR" : "INFO"
     data_trace_enabled    = var.environment != "prod"
-    throttling_rate_limit = var.environment == "prod" ? 5 : 2
-    throttling_burst_limit = var.environment == "prod" ? 10 : 5
+    throttling_rate_limit = var.environment == "prod" ? 10 : 5
+    throttling_burst_limit = var.environment == "prod" ? 20 : 10
   }
 
-  depends_on = [aws_api_gateway_deployment.learntrac_api]
-}
-
-# Method-level throttling for LLM evaluate endpoint
-resource "aws_api_gateway_method_settings" "llm_evaluate_settings" {
-  rest_api_id = aws_api_gateway_rest_api.learntrac_api.id
-  stage_name  = aws_api_gateway_stage.learntrac_stage.stage_name
-  method_path = "${aws_api_gateway_resource.llm_evaluate.path_part}/*"
-
-  settings = {
-    metrics_enabled        = true
-    logging_level         = var.environment == "prod" ? "ERROR" : "INFO"
-    data_trace_enabled    = var.environment != "prod"
-    throttling_rate_limit = var.environment == "prod" ? 5 : 2
-    throttling_burst_limit = var.environment == "prod" ? 10 : 5
-  }
-
-  depends_on = [aws_api_gateway_deployment.learntrac_api]
+  depends_on = [aws_api_gateway_deployment.learntrac]
 }
 
 # WAF Web ACL for additional protection (optional, for production)
@@ -125,7 +108,7 @@ resource "aws_wafv2_web_acl" "api_protection" {
 resource "aws_wafv2_web_acl_association" "api_gateway" {
   count = var.environment == "prod" ? 1 : 0
   
-  resource_arn = aws_api_gateway_stage.learntrac_stage.arn
+  resource_arn = aws_api_gateway_stage.learntrac.arn
   web_acl_arn  = aws_wafv2_web_acl.api_protection[0].arn
 }
 
@@ -143,8 +126,8 @@ resource "aws_cloudwatch_metric_alarm" "high_4xx_errors" {
   treat_missing_data = "notBreaching"
 
   dimensions = {
-    ApiName = aws_api_gateway_rest_api.learntrac_api.name
-    Stage   = aws_api_gateway_stage.learntrac_stage.stage_name
+    ApiName = aws_api_gateway_rest_api.learntrac.name
+    Stage   = aws_api_gateway_stage.learntrac.stage_name
   }
 
   tags = merge(local.common_tags, {
@@ -165,8 +148,8 @@ resource "aws_cloudwatch_metric_alarm" "high_latency" {
   treat_missing_data = "notBreaching"
 
   dimensions = {
-    ApiName = aws_api_gateway_rest_api.learntrac_api.name
-    Stage   = aws_api_gateway_stage.learntrac_stage.stage_name
+    ApiName = aws_api_gateway_rest_api.learntrac.name
+    Stage   = aws_api_gateway_stage.learntrac.stage_name
   }
 
   tags = merge(local.common_tags, {

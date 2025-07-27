@@ -17,19 +17,20 @@ resource "aws_secretsmanager_secret_version" "neo4j_credentials" {
   })
 }
 
-# OpenAI API Key Secret (for AI features)
-resource "aws_secretsmanager_secret" "openai_api_key" {
-  name        = "${local.project_prefix}-openai-api-key"
-  description = "OpenAI API key for ${var.owner_prefix} ${var.project_name} - ${var.environment}"
-  
-  tags = merge(local.common_tags, {
-    Name = "${local.project_prefix}-openai-secret"
-  })
-}
-
-resource "aws_secretsmanager_secret_version" "openai_api_key" {
-  secret_id = aws_secretsmanager_secret.openai_api_key.id
-  secret_string = jsonencode({
-    api_key = var.openai_api_key
-  })
-}
+# Note: OpenAI API Key Secret is defined in lambda-llm.tf
+# Commenting out duplicate resource
+# resource "aws_secretsmanager_secret" "openai_api_key" {
+#   name        = "${local.project_prefix}-openai-api-key"
+#   description = "OpenAI API key for ${var.owner_prefix} ${var.project_name} - ${var.environment}"
+#   
+#   tags = merge(local.common_tags, {
+#     Name = "${local.project_prefix}-openai-secret"
+#   })
+# }
+# 
+# resource "aws_secretsmanager_secret_version" "openai_api_key" {
+#   secret_id = aws_secretsmanager_secret.openai_api_key.id
+#   secret_string = jsonencode({
+#     api_key = var.openai_api_key
+#   })
+# }

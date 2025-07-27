@@ -1,0 +1,54 @@
+FROM python:2.7-slim
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    python-dev \
+    libssl-dev \
+    libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Trac and required packages
+RUN pip install --no-cache-dir \
+    trac==1.4.3 \
+    PyJWT==1.7.1 \
+    cryptography==2.8 \
+    genshi
+
+# Create working directory
+WORKDIR /app
+
+# Copy plugins
+COPY plugins/cognitoauth /app/cognitoauth
+COPY plugins/pdfuploadmacro /app/pdfuploadmacro
+
+# Install plugins
+RUN cd /app/cognitoauth && python setup.py install && \
+    cd /app/pdfuploadmacro && python setup.py install
+
+# Create Trac environment
+RUN trac-admin /var/trac initenv LearnTrac sqlite:db/trac.db
+
+# Configure Trac
+RUN echo '\n\
+[components]\n\
+cognitoauth.* = enabled\n\
+trac.web.auth.* = disabled\n\
+pdfuploadmacro.* = enabled\n\
+\n\
+[cognito]\n\
+client_id = 5adkv019v4rcu6o87ffg46ep02\n\
+domain = hutch-learntrac-dev-auth\n\
+region = us-east-2\n\
+user_pool_id = us-east-2_IvxzMrWwg\n\
+login_redirect_path = /trac/wiki\n\
+\n\
+[trac]\n\
+base_url = http://localhost:8000\n\
+' >> /var/trac/conf/trac.ini
+
+# Expose port
+EXPOSE 8000
+
+# Start Trac
+CMD ["tracd", "--port", "8000", "--base-path=/trac", "/var/trac"]

@@ -18,7 +18,7 @@ import json
 
 from ..db.database import DatabaseManager
 from ..db.trac_bridge import TracDatabaseBridge
-from ..services.redis_client import RedisCache
+# Redis removed - from ..services.redis_client import RedisCache
 from ..pdf_processing.neo4j_connection_manager import Neo4jConnectionManager, ConnectionConfig
 from ..pdf_processing.neo4j_vector_index_manager import Neo4jVectorIndexManager
 from ..pdf_processing.neo4j_content_ingestion import Neo4jContentIngestion, TextbookMetadata
@@ -92,7 +92,7 @@ class TracService:
         self,
         db_manager: DatabaseManager,
         neo4j_config: ConnectionConfig,
-        redis_cache: RedisCache,
+        # redis_cache: RedisCache,  # Redis removed
         embedding_service: EmbeddingService
     ):
         """
@@ -101,11 +101,10 @@ class TracService:
         Args:
             db_manager: Database manager for PostgreSQL
             neo4j_config: Neo4j connection configuration
-            redis_cache: Redis cache instance
             embedding_service: Embedding generation service
         """
         self.db_manager = db_manager
-        self.redis_cache = redis_cache
+        # self.redis_cache = redis_cache  # Redis removed
         self.embedding_service = embedding_service
         
         # Initialize Trac bridge
@@ -308,10 +307,10 @@ class TracService:
     
     async def get_user_profile(self, user_id: str) -> Optional[UserProfile]:
         """Get user learning profile"""
-        # Check cache first
-        cached = await self.redis_cache.get(f"user_profile:{user_id}")
-        if cached:
-            return UserProfile(**json.loads(cached))
+        # Redis removed - skip cache check
+        # cached = await self.redis_cache.get(f"user_profile:{user_id}")
+        # if cached:
+        #     return UserProfile(**json.loads(cached))
         
         # Query database
         user_data = await self.db_manager.fetch_one(
@@ -352,12 +351,12 @@ class TracService:
             preferences=user_data.get("preferences", {})
         )
         
-        # Cache profile
-        await self.redis_cache.set(
-            f"user_profile:{user_id}",
-            json.dumps(profile.__dict__, default=str),
-            ttl=3600
-        )
+        # Redis removed - skip caching
+        # await self.redis_cache.set(
+        #     f"user_profile:{user_id}",
+        #     json.dumps(profile.__dict__, default=str),
+        #     ttl=3600
+        # )
         
         return profile
     
@@ -406,8 +405,8 @@ class TracService:
             # Update concept mastery
             await self._update_concept_mastery(user_id, chunk_id, understanding_level)
             
-            # Invalidate cache
-            await self.redis_cache.delete(f"user_profile:{user_id}")
+            # Redis removed - skip cache invalidation
+            # await self.redis_cache.delete(f"user_profile:{user_id}")
             
             return True
             
@@ -723,18 +722,19 @@ class TracService:
         metadata: TextbookMetadata
     ) -> None:
         """Cache textbook metadata"""
-        await self.redis_cache.set(
-            f"textbook:{textbook_id}",
-            json.dumps({
-                "title": metadata.title,
-                "subject": metadata.subject,
-                "authors": metadata.authors,
-                "processing_date": metadata.processing_date.isoformat(),
-                "quality_metrics": metadata.quality_metrics,
-                "statistics": metadata.statistics
-            }),
-            ttl=86400  # 24 hours
-        )
+        # Redis removed - skip caching
+        # await self.redis_cache.set(
+        #     f"textbook:{textbook_id}",
+        #     json.dumps({
+        #         "title": metadata.title,
+        #         "subject": metadata.subject,
+        #         "authors": metadata.authors,
+        #         "processing_date": metadata.processing_date.isoformat(),
+        #         "quality_metrics": metadata.quality_metrics,
+        #         "statistics": metadata.statistics
+        #     }),
+        #     ttl=86400  # 24 hours
+        # )
     
     def _extract_metadata(self, processing_result) -> TextbookMetadata:
         """Extract metadata from processing result"""

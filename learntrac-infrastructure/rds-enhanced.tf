@@ -204,7 +204,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_cpu" {
   statistic           = "Average"
   threshold           = var.environment == "prod" ? "80" : "90"
   alarm_description   = "RDS CPU utilization is too high"
-  alarm_actions       = var.environment == "prod" ? [aws_sns_topic.alerts[0].arn] : []
+  alarm_actions       = var.environment == "prod" ? [aws_sns_topic.alerts.arn] : []
 
   dimensions = {
     DBInstanceIdentifier = aws_db_instance.learntrac.id
@@ -223,7 +223,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_storage" {
   statistic           = "Average"
   threshold           = "2147483648"  # 2GB in bytes
   alarm_description   = "RDS free storage space is low"
-  alarm_actions       = var.environment == "prod" ? [aws_sns_topic.alerts[0].arn] : []
+  alarm_actions       = var.environment == "prod" ? [aws_sns_topic.alerts.arn] : []
 
   dimensions = {
     DBInstanceIdentifier = aws_db_instance.learntrac.id
@@ -242,7 +242,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_connections" {
   statistic           = "Average"
   threshold           = var.environment == "prod" ? "180" : "90"
   alarm_description   = "RDS connection count is high"
-  alarm_actions       = var.environment == "prod" ? [aws_sns_topic.alerts[0].arn] : []
+  alarm_actions       = var.environment == "prod" ? [aws_sns_topic.alerts.arn] : []
 
   dimensions = {
     DBInstanceIdentifier = aws_db_instance.learntrac.id
@@ -251,15 +251,16 @@ resource "aws_cloudwatch_metric_alarm" "rds_connections" {
   tags = local.common_tags
 }
 
-# SNS topic for alerts (production only)
-resource "aws_sns_topic" "alerts" {
-  count = var.environment == "prod" ? 1 : 0
-  name  = "${local.project_prefix}-alerts"
-
-  tags = merge(local.common_tags, {
-    Name = "${local.project_prefix}-alerts"
-  })
-}
+# Note: SNS topic for alerts is defined in monitoring.tf
+# Commenting out duplicate resource
+# resource "aws_sns_topic" "alerts" {
+#   count = var.environment == "prod" ? 1 : 0
+#   name  = "${local.project_prefix}-alerts"
+# 
+#   tags = merge(local.common_tags, {
+#     Name = "${local.project_prefix}-alerts"
+#   })
+# }
 
 # Update the main RDS instance to use enhanced configuration
 # resource "aws_db_instance" "learntrac_enhanced" {

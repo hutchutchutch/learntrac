@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LearnTrac Authentication Test</title>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>LearnTrac Authentication Test</h1>
+    
+    <div class="test-section">
+        <h2>1. Test Cognito Direct Authentication</h2>
+        <p>This tests the direct Cognito authentication flow:</p>
+        <button onclick="testCognitoDirect()">Test Cognito Login</button>
+        <div id="cognito-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. Test Learning API Auth Endpoints</h2>
+        <p>Test the authentication endpoints in the learning API:</p>
+        <button onclick="testAPIAuth()">Test API Auth</button>
+        <div id="api-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. Test Full Trac Integration</h2>
+        <p>This simulates the full Trac authentication flow:</p>
+        <ol>
+            <li>User accesses Trac at <code>http://localhost:8000/trac/wiki</code></li>
+            <li>Auth proxy plugin checks session</li>
+            <li>If not authenticated, redirects to <code>http://localhost:8001/auth/login</code></li>
+            <li>Learning API redirects to Cognito</li>
+            <li>After Cognito auth, returns to <code>http://localhost:8001/auth/callback</code></li>
+            <li>Learning API sets session cookie and redirects to Trac</li>
+        </ol>
+        <button onclick="window.location.href='http://localhost:8001/auth/login?redirect=/trac/wiki'">Start Auth Flow</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>4. Check Authentication Status</h2>
+        <button onclick="checkAuthStatus()">Check Auth Status</button>
+        <div id="auth-status"></div>
+    </div>
+    
+    <script>
+        function testCognitoDirect() {
+            const config = {
+                domain: 'hutch-learntrac-dev-auth',
+                region: 'us-east-2',
+                clientId: '5adkv019v4rcu6o87ffg46ep02',
+                redirectUri: 'http://localhost:8001/auth/callback'
+            };
+            
+            const authUrl = `https://${config.domain}.auth.${config.region}.amazoncognito.com/login?` +
+                `response_type=code&` +
+                `client_id=${config.clientId}&` +
+                `redirect_uri=${encodeURIComponent(config.redirectUri)}&` +
+                `scope=openid+email+profile&` +
+                `state=/trac/wiki`;
+            
+            document.getElementById('cognito-result').innerHTML = 
+                `<p>Cognito Auth URL:</p><pre>${authUrl}</pre>` +
+                `<p><a href="${authUrl}" target="_blank">Open in new tab</a></p>`;
+        }
+        
+        function testAPIAuth() {
+            fetch('http://localhost:8001/')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('api-result').innerHTML = 
+                        '<p class="success">API is running!</p>' +
+                        '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                })
+                .catch(err => {
+                    document.getElementById('api-result').innerHTML = 
+                        '<p class="error">API not reachable. Make sure the learning service is running on port 8001.</p>' +
+                        '<pre>' + err + '</pre>';
+                });
+        }
+        
+        function checkAuthStatus() {
+            fetch('http://localhost:8001/auth/verify', {
+                credentials: 'include'
+            })
+                .then(r => r.json())
+                .then(data => {
+                    const statusDiv = document.getElementById('auth-status');
+                    if (data.authenticated) {
+                        statusDiv.innerHTML = 
+                            '<p class="success">Authenticated!</p>' +
+                            '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                    } else {
+                        statusDiv.innerHTML = 
+                            '<p class="error">Not authenticated</p>' +
+                            '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                    }
+                })
+                .catch(err => {
+                    document.getElementById('auth-status').innerHTML = 
+                        '<p class="error">Error checking auth status</p>' +
+                        '<pre>' + err + '</pre>';
+                });
+        }
+    </script>
+</body>
+</html>
