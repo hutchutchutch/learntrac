@@ -124,14 +124,19 @@ resource "aws_cognito_user_pool_client" "learntrac" {
   allowed_oauth_flows_user_pool_client = true
   supported_identity_providers         = ["COGNITO"]
 
+  # Generate client secret for OAuth2 proxy
+  generate_secret = true
+  
   # Callback URLs - update these for your environment
   callback_urls = [
+    "http://localhost/oauth2/callback",
     "http://localhost:8000/auth/callback",
     "http://localhost:8001/auth/callback",
     "https://${aws_api_gateway_rest_api.learntrac.id}.execute-api.${var.aws_region}.amazonaws.com/${aws_api_gateway_stage.learntrac.stage_name}/auth/callback"
   ]
 
   logout_urls = [
+    "http://localhost",
     "http://localhost:8000/",
     "http://localhost:8001/",
     "https://${aws_api_gateway_rest_api.learntrac.id}.execute-api.${var.aws_region}.amazonaws.com/${aws_api_gateway_stage.learntrac.stage_name}/"
