@@ -1,0 +1,842 @@
+{
+  "timestamp": "2025-07-27T20:02:34.761832",
+  "ui_requirements": {
+    "learning_path_display": {
+      "path_id": "string (UUID)",
+      "title": "string",
+      "description": "string",
+      "difficulty_level": "string (beginner|intermediate|advanced)",
+      "total_concepts": "integer",
+      "completed_concepts": "integer",
+      "completion_percentage": "float",
+      "created_at": "timestamp",
+      "user_info": {
+        "cognito_username": "string",
+        "cognito_email": "string",
+        "cognito_name": "string",
+        "cognito_groups": "array"
+      }
+    },
+    "ticket_details": {
+      "ticket_id": "integer",
+      "summary": "string",
+      "description": "string",
+      "status": "string",
+      "custom_fields": {
+        "question": "text",
+        "expected_answer": "text",
+        "question_difficulty": "integer (1-5)",
+        "question_context": "text",
+        "chunk_id": "string",
+        "cognito_user_id": "string",
+        "relevance_score": "float (0-1)",
+        "learning_type": "string",
+        "auto_generated": "boolean",
+        "metadata_*": "dynamic fields from chunk metadata"
+      },
+      "learning_metadata": {
+        "concept_id": "UUID",
+        "path_id": "UUID",
+        "sequence_order": "integer",
+        "concept_type": "string",
+        "difficulty_score": "float",
+        "mastery_threshold": "float",
+        "estimated_minutes": "integer",
+        "tags": "array",
+        "resources": "jsonb"
+      },
+      "prerequisites": [
+        {
+          "prereq_ticket_id": "integer",
+          "prereq_summary": "string",
+          "requirement_type": "string"
+        }
+      ],
+      "progress": {
+        "status": "string (not_started|in_progress|completed|mastered)",
+        "mastery_score": "float (0-1)",
+        "time_spent_minutes": "integer",
+        "attempt_count": "integer",
+        "last_accessed": "timestamp",
+        "completed_at": "timestamp",
+        "notes": "text"
+      }
+    }
+  },
+  "database_schema": {
+    "learning_tables": [
+      {
+        "table_name": "concept_metadata",
+        "table_type": "BASE TABLE"
+      },
+      {
+        "table_name": "paths",
+        "table_type": "BASE TABLE"
+      },
+      {
+        "table_name": "prerequisites",
+        "table_type": "BASE TABLE"
+      },
+      {
+        "table_name": "progress",
+        "table_type": "BASE TABLE"
+      },
+      {
+        "table_name": "v_prerequisites_graph",
+        "table_type": "VIEW"
+      },
+      {
+        "table_name": "v_ticket_learning_details",
+        "table_type": "VIEW"
+      },
+      {
+        "table_name": "v_user_path_summary",
+        "table_type": "VIEW"
+      }
+    ],
+    "learning.concept_metadata_columns": [
+      {
+        "column_name": "ticket_id",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": 32,
+        "numeric_scale": 0
+      },
+      {
+        "column_name": "path_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "chunk_id",
+        "data_type": "character varying",
+        "is_nullable": "NO",
+        "column_default": null,
+        "character_maximum_length": 100,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "relevance_score",
+        "data_type": "double precision",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": 53,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "question_generated",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "column_default": "true",
+        "character_maximum_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "column_default": "CURRENT_TIMESTAMP",
+        "character_maximum_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null
+      }
+    ],
+    "learning.paths_columns": [
+      {
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "column_default": "gen_random_uuid()",
+        "character_maximum_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "title",
+        "data_type": "character varying",
+        "is_nullable": "NO",
+        "column_default": null,
+        "character_maximum_length": 255,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "query_text",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "cognito_user_id",
+        "data_type": "character varying",
+        "is_nullable": "NO",
+        "column_default": null,
+        "character_maximum_length": 100,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "column_default": "CURRENT_TIMESTAMP",
+        "character_maximum_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "total_chunks",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": "0",
+        "character_maximum_length": null,
+        "numeric_precision": 32,
+        "numeric_scale": 0
+      },
+      {
+        "column_name": "question_difficulty",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": "3",
+        "character_maximum_length": null,
+        "numeric_precision": 32,
+        "numeric_scale": 0
+      }
+    ],
+    "learning.prerequisites_columns": [
+      {
+        "column_name": "concept_ticket_id",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": 32,
+        "numeric_scale": 0
+      },
+      {
+        "column_name": "prerequisite_ticket_id",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": 32,
+        "numeric_scale": 0
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "column_default": "CURRENT_TIMESTAMP",
+        "character_maximum_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null
+      }
+    ],
+    "learning.progress_columns": [
+      {
+        "column_name": "cognito_user_id",
+        "data_type": "character varying",
+        "is_nullable": "NO",
+        "column_default": null,
+        "character_maximum_length": 100,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "ticket_id",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": 32,
+        "numeric_scale": 0
+      },
+      {
+        "column_name": "status",
+        "data_type": "character varying",
+        "is_nullable": "YES",
+        "column_default": "'not_started'::character varying",
+        "character_maximum_length": 20,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "started_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "last_accessed",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "completed_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "time_spent_minutes",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": "0",
+        "character_maximum_length": null,
+        "numeric_precision": 32,
+        "numeric_scale": 0
+      },
+      {
+        "column_name": "notes",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "last_answer",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "answer_score",
+        "data_type": "double precision",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": 53,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "answer_feedback",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null
+      }
+    ],
+    "learning.v_prerequisites_graph_columns": [
+      {
+        "column_name": "concept_ticket_id",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": 32,
+        "numeric_scale": 0
+      },
+      {
+        "column_name": "concept_summary",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "prerequisite_ticket_id",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": 32,
+        "numeric_scale": 0
+      },
+      {
+        "column_name": "prerequisite_summary",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "relationship_created",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null
+      }
+    ],
+    "learning.v_ticket_learning_details_columns": [
+      {
+        "column_name": "ticket_id",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": 32,
+        "numeric_scale": 0
+      },
+      {
+        "column_name": "ticket_summary",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "ticket_type",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "ticket_status",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "path_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "chunk_id",
+        "data_type": "character varying",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": 100,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "relevance_score",
+        "data_type": "double precision",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": 53,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "question_generated",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "prerequisite_count",
+        "data_type": "bigint",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": 64,
+        "numeric_scale": 0
+      },
+      {
+        "column_name": "dependent_count",
+        "data_type": "bigint",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": 64,
+        "numeric_scale": 0
+      }
+    ],
+    "learning.v_user_path_summary_columns": [
+      {
+        "column_name": "path_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "path_title",
+        "data_type": "character varying",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": 255,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "cognito_user_id",
+        "data_type": "character varying",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": 100,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null
+      },
+      {
+        "column_name": "total_chunks",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": 32,
+        "numeric_scale": 0
+      },
+      {
+        "column_name": "total_concepts",
+        "data_type": "bigint",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": 64,
+        "numeric_scale": 0
+      },
+      {
+        "column_name": "completed_concepts",
+        "data_type": "bigint",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": 64,
+        "numeric_scale": 0
+      },
+      {
+        "column_name": "mastered_concepts",
+        "data_type": "bigint",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": 64,
+        "numeric_scale": 0
+      },
+      {
+        "column_name": "completion_percentage",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null,
+        "character_maximum_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null
+      }
+    ],
+    "foreign_keys": [
+      {
+        "table_name": "concept_metadata",
+        "column_name": "path_id",
+        "foreign_table_name": "paths",
+        "foreign_column_name": "id",
+        "constraint_name": "concept_metadata_path_id_fkey"
+      }
+    ],
+    "table_existence_check": {
+      "learning_paths": false,
+      "paths": true,
+      "concept_metadata": true,
+      "concept_meta": false,
+      "prerequisites": true,
+      "prereqs": false,
+      "progress": true,
+      "learning_progress": false
+    },
+    "trac_ticket_columns": [
+      {
+        "column_name": "id",
+        "data_type": "integer",
+        "is_nullable": "NO"
+      },
+      {
+        "column_name": "type",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "time",
+        "data_type": "bigint",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "changetime",
+        "data_type": "bigint",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "component",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "severity",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "priority",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "owner",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "reporter",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "cc",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "version",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "milestone",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "status",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "resolution",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "summary",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "description",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "keywords",
+        "data_type": "text",
+        "is_nullable": "YES"
+      }
+    ],
+    "ticket_custom_exists": true,
+    "ticket_custom_columns": [
+      {
+        "column_name": "ticket",
+        "data_type": "integer",
+        "is_nullable": "NO"
+      },
+      {
+        "column_name": "name",
+        "data_type": "text",
+        "is_nullable": "NO"
+      },
+      {
+        "column_name": "value",
+        "data_type": "text",
+        "is_nullable": "YES"
+      }
+    ]
+  },
+  "api_structures": {
+    "vector_search_to_learning_path_input": {
+      "query": "string",
+      "min_score": "float (0.0-1.0)",
+      "max_chunks": "integer (1-50)",
+      "path_title": "string (optional)",
+      "difficulty_level": "string (beginner|intermediate|advanced)"
+    },
+    "vector_search_chunk_format": {
+      "id": "string",
+      "content": "string",
+      "subject": "string",
+      "concept": "string",
+      "score": "float",
+      "has_prerequisite": "array or null",
+      "prerequisite_for": "array or null"
+    },
+    "transformed_chunk_format": {
+      "id": "string",
+      "content": "string",
+      "concept": "string (with fallback to 'Unknown Concept')",
+      "subject": "string (with fallback to 'General')",
+      "score": "float",
+      "has_prerequisite": "array or null",
+      "prerequisite_for": "array or null",
+      "metadata": {
+        "source": "string ('vector_search')",
+        "search_score": "float"
+      }
+    },
+    "learning_path_response": {
+      "path_id": "string (UUID)",
+      "message": "string",
+      "ticket_count": "integer",
+      "prerequisite_count": "integer"
+    },
+    "database_inserts": {
+      "learning_paths_table": {
+        "title": "string",
+        "description": "string (query)",
+        "difficulty_level": "string",
+        "created_by": "string (user_id)",
+        "tags": "array"
+      },
+      "ticket_table": {
+        "type": "string ('learning_concept')",
+        "summary": "string (concept name)",
+        "description": "string (content)",
+        "owner": "string (user_id)",
+        "keywords": "string (formatted tags)"
+      },
+      "ticket_custom_table": [
+        {
+          "name": "question",
+          "value": "string"
+        },
+        {
+          "name": "expected_answer",
+          "value": "string"
+        },
+        {
+          "name": "question_difficulty",
+          "value": "string (integer)"
+        },
+        {
+          "name": "question_context",
+          "value": "string"
+        },
+        {
+          "name": "chunk_id",
+          "value": "string"
+        },
+        {
+          "name": "cognito_user_id",
+          "value": "string"
+        },
+        {
+          "name": "relevance_score",
+          "value": "string (float)"
+        },
+        {
+          "name": "learning_type",
+          "value": "string"
+        },
+        {
+          "name": "auto_generated",
+          "value": "string (boolean)"
+        },
+        {
+          "name": "metadata_*",
+          "value": "string (dynamic)"
+        }
+      ],
+      "concept_metadata_table": {
+        "concept_id": "UUID",
+        "ticket_id": "integer",
+        "path_id": "UUID",
+        "sequence_order": "integer",
+        "concept_type": "string ('lesson')",
+        "difficulty_score": "integer (3)",
+        "mastery_threshold": "float (0.8)",
+        "practice_questions": "null",
+        "learning_objectives": "null",
+        "resources": "jsonb (chunk metadata)",
+        "estimated_minutes": "integer (30)",
+        "tags": "array (['auto-generated'])"
+      },
+      "prerequisites_table": {
+        "prerequisite_id": "UUID",
+        "concept_id": "UUID",
+        "prereq_concept_id": "UUID",
+        "requirement_type": "string ('mandatory')"
+      }
+    },
+    "ticket_details_response": {
+      "ticket_id": "integer",
+      "summary": "string",
+      "description": "string",
+      "status": "string",
+      "milestone": "string",
+      "created_time": "timestamp",
+      "updated_time": "timestamp",
+      "owner": "string",
+      "reporter": "string",
+      "keywords": "string",
+      "concept_id": "UUID",
+      "path_id": "UUID",
+      "sequence_order": "integer",
+      "concept_type": "string",
+      "difficulty_score": "float",
+      "mastery_threshold": "float",
+      "estimated_minutes": "integer",
+      "tags": "array",
+      "resources": "jsonb",
+      "progress_status": "string",
+      "mastery_score": "float",
+      "time_spent_minutes": "integer",
+      "attempt_count": "integer",
+      "last_accessed": "timestamp",
+      "completed_at": "timestamp",
+      "progress_notes": "string",
+      "custom_fields": "jsonb",
+      "prerequisites": "array"
+    }
+  },
+  "mismatches": [],
+  "recommendations": []
+}

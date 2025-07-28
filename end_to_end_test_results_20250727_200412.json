@@ -1,0 +1,28 @@
+{
+  "timestamp": "2025-07-27T20:04:11.094926",
+  "neo4j_chunks": [],
+  "api_response": null,
+  "database_verification": {
+    "recent_paths": [
+      {
+        "id": "af54c0ab-1d89-4def-b139-beaf3c9d6b5a",
+        "title": "Test Path",
+        "cognito_user_id": "test-user-123",
+        "created_at": "2025-07-25 17:51:54.690078",
+        "total_chunks": 0
+      }
+    ],
+    "recent_concept_metadata": [],
+    "recent_learning_tickets": [],
+    "recent_prerequisites": []
+  },
+  "schema_consistency": {
+    "ui_expectations_met": true,
+    "api_database_alignment": true,
+    "data_types_consistent": true,
+    "validation_errors": []
+  },
+  "errors": [
+    "Learning path API test failed: object of type 'NoneType' has no len()"
+  ]
+}
