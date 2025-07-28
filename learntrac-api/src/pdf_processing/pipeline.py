@@ -540,7 +540,7 @@ class PDFProcessingPipeline:
                 "",
                 f"Recommendations ({len(recommendations)}):",
                 *[f"  • {rec}" for rec in recommendations[:3]],
-                *["  • ..." if len(recommendations) > 3 else []]
+                *(["  • ..."] if len(recommendations) > 3 else [])
             ])
         
         return "\n".join(summary_parts)

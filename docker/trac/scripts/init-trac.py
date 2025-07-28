@@ -10,10 +10,20 @@ trac_env_path = '/var/trac/projects'
 # Create basic Trac environment
 admin = TracAdmin(trac_env_path)
 
+# For now, use SQLite to get Trac working
+# We can migrate to RDS later
+db_string = 'sqlite:db/trac.db'
+
 # do_initenv expects a string with space-separated arguments
 # Format: project_name db_string [repos_type repos_path]
-init_args = '"LearnTrac Legacy" sqlite:db/trac.db'
-admin.do_initenv(init_args)
+init_args = '"LearnTrac Legacy" %s' % db_string
+try:
+    admin.do_initenv(init_args)
+except Exception as e:
+    print("Error initializing Trac: %s" % e)
+    # If it already exists, that's OK
+    if "already exists" not in str(e):
+        raise
 
 # Initialize with basic configuration
 env = Environment(trac_env_path)

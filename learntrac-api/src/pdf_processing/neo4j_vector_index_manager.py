@@ -131,19 +131,35 @@ class Neo4jVectorIndexManager:
                     logger.warning(f"Index already exists: {config.index_name}")
                     return False
             
-            # Neo4j 5.12 doesn't support CREATE VECTOR INDEX
-            # Create a regular index for the property instead
-            # This will help with lookups even if vector similarity isn't native
-            query = f"""
-                CREATE INDEX {config.index_name} IF NOT EXISTS
-                FOR (n:{config.node_label})
-                ON (n.{config.property_name})
-            """
-            
-            await self.connection.execute_query(query)
-            
-            # Log that we're using compatibility mode
-            logger.warning(f"Created regular index {config.index_name} for Neo4j 5.12 compatibility. Native vector search not available.")
+            # Try to create vector index first (Neo4j 5.13+)
+            try:
+                vector_query = f"""
+                    CREATE VECTOR INDEX {config.index_name} IF NOT EXISTS
+                    FOR (n:{config.node_label})
+                    ON (n.{config.property_name})
+                    OPTIONS {{
+                        indexConfig: {{
+                            `vector.dimensions`: {config.dimensions},
+                            `vector.similarity_function`: '{config.similarity_function.value}'
+                        }}
+                    }}
+                """
+                
+                await self.connection.execute_query(vector_query)
+                logger.info(f"Created native vector index {config.index_name} with {config.dimensions} dimensions")
+                
+            except Exception as vector_error:
+                # Fallback to regular index for Neo4j 5.12 compatibility
+                logger.warning(f"Native vector index creation failed ({vector_error}), falling back to regular index")
+                
+                query = f"""
+                    CREATE INDEX {config.index_name} IF NOT EXISTS
+                    FOR (n:{config.node_label})
+                    ON (n.{config.property_name})
+                """
+                
+                await self.connection.execute_query(query)
+                logger.info(f"Created regular index {config.index_name} for Neo4j 5.12 compatibility")
             
             # Store configuration
             self.index_configs[config.index_name] = config
@@ -406,85 +422,144 @@ class Neo4jVectorIndexManager:
             if not index_info:
                 raise ValueError(f"Index {index_name} not found")
             
-            # Neo4j 5.12 compatibility: Manual vector similarity search
-            # Build query to retrieve nodes with embeddings
-            query_parts = [
-                f"MATCH (node:{index_info.node_label})",
-                f"WHERE node.{index_info.property_name} IS NOT NULL"
-            ]
-            
-            # Add property filters
-            if filters:
-                filter_conditions = []
-                for prop, value in filters.items():
-                    if isinstance(value, str):
-                        filter_conditions.append(f"node.{prop} = '{value}'")
-                    else:
-                        filter_conditions.append(f"node.{prop} = {value}")
+            # Try native vector search first (Neo4j 5.13+)
+            try:
+                # Build native vector search query
+                query_parts = []
                 
-                if filter_conditions:
-                    query_parts.append("AND " + " AND ".join(filter_conditions))
-            
-            # Build return clause
-            if return_properties:
-                return_props = [f"node.{prop} as {prop}" for prop in return_properties]
-                return_clause = f"RETURN id(node) as node_id, node.{index_info.property_name} as embedding, {', '.join(return_props)}"
-            else:
-                return_clause = f"RETURN id(node) as node_id, node.{index_info.property_name} as embedding, node"
-            
-            query_parts.append(return_clause)
-            
-            query = "\n".join(query_parts)
-            
-            # Execute search to get all nodes
-            results = await self.connection.execute_query(query)
-            
-            # Calculate similarities in-memory using pure Python
-            def cosine_similarity(vec1, vec2):
-                """Calculate cosine similarity between two vectors"""
-                dot_product = sum(a * b for a, b in zip(vec1, vec2))
-                norm1 = (sum(a * a for a in vec1)) ** 0.5
-                norm2 = (sum(b * b for b in vec2)) ** 0.5
-                
-                if norm1 > 0 and norm2 > 0:
-                    return dot_product / (norm1 * norm2)
-                return 0.0
-            
-            scored_results = []
-            for record in results:
-                embedding = record.get("embedding")
-                if embedding and len(embedding) == len(query_vector):
-                    score = cosine_similarity(query_vector, embedding)
+                if filters:
+                    filter_conditions = []
+                    for prop, value in filters.items():
+                        if isinstance(value, str):
+                            filter_conditions.append(f"node.{prop} = $filter_{prop}")
+                        else:
+                            filter_conditions.append(f"node.{prop} = $filter_{prop}")
                     
-                    if min_score is None or score >= min_score:
-                        scored_results.append((float(score), record))
-            
-            # Sort by score and limit
-            scored_results.sort(key=lambda x: x[0], reverse=True)
-            scored_results = scored_results[:limit]
-            
-            results = [record for _, record in scored_results]
-            
-            # Format results
-            search_results = []
-            for score, record in scored_results:
-                if "node" in record:
-                    # Full node returned
-                    node_props = dict(record["node"])
-                    # Remove embedding from properties to avoid sending large arrays
-                    node_props.pop(index_info.property_name, None)
+                    if filter_conditions:
+                        filter_clause = "WHERE " + " AND ".join(filter_conditions)
+                    else:
+                        filter_clause = ""
                 else:
-                    # Specific properties returned
-                    node_props = {k: v for k, v in record.items() 
-                                 if k not in ["node_id", "embedding"]}
+                    filter_clause = ""
                 
-                search_results.append(VectorSearchResult(
-                    node_id=str(record["node_id"]),
-                    score=score,
-                    node_properties=node_props
-                ))
-            
-            return search_results
+                # Native vector search query
+                native_query = f"""
+                    CALL db.index.vector.queryNodes('{index_name}', $limit, $query_vector)
+                    YIELD node, score
+                    {filter_clause}
+                    RETURN id(node) as node_id, score, node
+                    ORDER BY score DESC
+                """
+                
+                params = {
+                    "query_vector": query_vector,
+                    "limit": limit
+                }
+                
+                # Add filter parameters
+                if filters:
+                    for prop, value in filters.items():
+                        params[f"filter_{prop}"] = value
+                
+                results = await self.connection.execute_query(native_query, params)
+                
+                # Format native results
+                search_results = []
+                for record in results:
+                    score = float(record["score"])
+                    if min_score is None or score >= min_score:
+                        node_props = dict(record["node"])
+                        # Remove embedding from properties to avoid sending large arrays
+                        node_props.pop(index_info.property_name, None)
+                        
+                        search_results.append(VectorSearchResult(
+                            node_id=str(record["node_id"]),
+                            score=score,
+                            node_properties=node_props
+                        ))
+                
+                logger.debug(f"Native vector search returned {len(search_results)} results")
+                return search_results
+                
+            except Exception as native_error:
+                logger.warning(f"Native vector search failed ({native_error}), falling back to manual search")
+                
+                # Fallback to manual similarity search
+                query_parts = [
+                    f"MATCH (node:{index_info.node_label})",
+                    f"WHERE node.{index_info.property_name} IS NOT NULL"
+                ]
+                
+                # Add property filters
+                if filters:
+                    filter_conditions = []
+                    for prop, value in filters.items():
+                        if isinstance(value, str):
+                            filter_conditions.append(f"node.{prop} = '{value}'")
+                        else:
+                            filter_conditions.append(f"node.{prop} = {value}")
+                    
+                    if filter_conditions:
+                        query_parts.append("AND " + " AND ".join(filter_conditions))
+                
+                # Build return clause
+                if return_properties:
+                    return_props = [f"node.{prop} as {prop}" for prop in return_properties]
+                    return_clause = f"RETURN id(node) as node_id, node.{index_info.property_name} as embedding, {', '.join(return_props)}"
+                else:
+                    return_clause = f"RETURN id(node) as node_id, node.{index_info.property_name} as embedding, node"
+                
+                query_parts.append(return_clause)
+                query = "\n".join(query_parts)
+                
+                # Execute search to get all nodes
+                results = await self.connection.execute_query(query)
+                
+                # Calculate similarities in-memory using pure Python
+                def cosine_similarity(vec1, vec2):
+                    """Calculate cosine similarity between two vectors"""
+                    dot_product = sum(a * b for a, b in zip(vec1, vec2))
+                    norm1 = (sum(a * a for a in vec1)) ** 0.5
+                    norm2 = (sum(b * b for b in vec2)) ** 0.5
+                    
+                    if norm1 > 0 and norm2 > 0:
+                        return dot_product / (norm1 * norm2)
+                    return 0.0
+                
+                scored_results = []
+                for record in results:
+                    embedding = record.get("embedding")
+                    if embedding and len(embedding) == len(query_vector):
+                        score = cosine_similarity(query_vector, embedding)
+                        
+                        if min_score is None or score >= min_score:
+                            scored_results.append((float(score), record))
+                
+                # Sort by score and limit
+                scored_results.sort(key=lambda x: x[0], reverse=True)
+                scored_results = scored_results[:limit]
+                
+                # Format results
+                search_results = []
+                for score, record in scored_results:
+                    if "node" in record:
+                        # Full node returned
+                        node_props = dict(record["node"])
+                        # Remove embedding from properties to avoid sending large arrays
+                        node_props.pop(index_info.property_name, None)
+                    else:
+                        # Specific properties returned
+                        node_props = {k: v for k, v in record.items() 
+                                     if k not in ["node_id", "embedding"]}
+                    
+                    search_results.append(VectorSearchResult(
+                        node_id=str(record["node_id"]),
+                        score=score,
+                        node_properties=node_props
+                    ))
+                
+                logger.debug(f"Manual vector search returned {len(search_results)} results")
+                return search_results
             
         except Exception as e:
             logger.error(f"Vector search failed: {e}")
@@ -739,39 +814,44 @@ class Neo4jVectorIndexManager:
             logger.error(f"Failed to get entity count: {e}")
             return 0
     
-    async def create_educational_indexes(self) -> Dict[str, bool]:
+    async def create_educational_indexes(self, embedding_dimensions: int = 1536) -> Dict[str, bool]:
         """
         Create all standard indexes for educational content.
+        
+        Args:
+            embedding_dimensions: Dimension size for embeddings (default 1536 for OpenAI)
         
         Returns:
             Dictionary of index names and creation status
         """
         indexes = [
             VectorIndexConfig(
-                index_name="chunkEmbedding",
+                index_name="chunkEmbeddingIndex",
                 node_label="Chunk",
                 property_name="embedding",
-                dimensions=768,  # Default, adjust based on model
+                dimensions=embedding_dimensions,
                 similarity_function=VectorSimilarityFunction.COSINE
             ),
             VectorIndexConfig(
-                index_name="conceptEmbedding",
+                index_name="conceptEmbeddingIndex",
                 node_label="Concept",
                 property_name="embedding",
-                dimensions=768,
+                dimensions=embedding_dimensions,
                 similarity_function=VectorSimilarityFunction.COSINE
             ),
             VectorIndexConfig(
-                index_name="sectionEmbedding",
+                index_name="sectionEmbeddingIndex",
                 node_label="Section",
                 property_name="embedding",
-                dimensions=768,
+                dimensions=embedding_dimensions,
                 similarity_function=VectorSimilarityFunction.COSINE
             )
         ]
         
         results = {}
         for config in indexes:
+            logger.info(f"Creating index {config.index_name} for {config.node_label} nodes...")
             results[config.index_name] = await self.create_index(config)
         
+        logger.info(f"Created {sum(results.values())}/{len(results)} indexes successfully")
         return results

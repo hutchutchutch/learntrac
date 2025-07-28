@@ -17,5 +17,10 @@ mkdir -p /var/trac/projects/plugins
 
 # Note: Cognito auth plugin is now optional, using basic auth by default
 
-# Start Trac using tracd (simpler than gunicorn for testing)
-exec tracd --port 8000 /var/trac/projects
+# For now, use tracd with better options to avoid the WSGI issues
+exec tracd \
+    --port 8000 \
+    --hostname 0.0.0.0 \
+    --single-env \
+    --base-path / \
+    /var/trac/projects

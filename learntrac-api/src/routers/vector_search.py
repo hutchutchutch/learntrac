@@ -11,6 +11,7 @@ import logging
 from ..auth.modern_session_handler import get_current_user, get_current_user_required, AuthenticatedUser
 from ..services.neo4j_aura_client import neo4j_aura_client
 from ..services.embedding_service import embedding_service
+from ..services.llm_service import llm_service
 # Redis removed - from ..services.redis_client import redis_cache
 
 logger = logging.getLogger(__name__)
@@ -43,6 +44,16 @@ class PrerequisiteRelation(BaseModel):
     from_chunk_id: str = Field(..., description="Chunk that has the prerequisite")
     to_chunk_id: str = Field(..., description="Prerequisite chunk")
     relationship_type: str = Field("STRONG", description="Type of relationship (STRONG, WEAK, OPTIONAL)")
+
+
+class EnhancedSearchRequest(BaseModel):
+    """Request model for enhanced vector search with LLM expansion"""
+    query: str = Field(..., description="User's search query")
+    generate_sentences: int = Field(5, ge=3, le=10, description="Number of academic sentences to generate")
+    min_score: float = Field(0.7, ge=0.0, le=1.0, description="Minimum similarity score")
+    limit: int = Field(20, ge=1, le=100, description="Maximum results to return")
+    include_prerequisites: bool = Field(True, description="Include prerequisite chains")
+    include_generated_context: bool = Field(True, description="Include the generated sentences in response")
 
 
 @router.post("/search")
@@ -310,6 +321,161 @@ async def bulk_vector_search(
     except Exception as e:
         logger.error(f"Bulk vector search failed: {e}")
         raise HTTPException(status_code=500, detail="Bulk vector search failed")
+
+
+@router.post("/search/enhanced")
+async def enhanced_vector_search(
+    request: EnhancedSearchRequest,
+    user: AuthenticatedUser = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    Perform enhanced vector search with LLM-generated academic context
+    
+    This endpoint:
+    1. Takes the user's input query
+    2. Uses LLM to generate 5 academic sentences expanding on the topic
+    3. Embeds the combined sentences
+    4. Performs vector search using the enhanced embedding
+    
+    This approach improves search relevance by capturing broader academic context.
+    """
+    try:
+        # Step 1: Generate academic context using LLM
+        logger.info(f"Generating academic context for query: {request.query}")
+        academic_context = await llm_service.generate_academic_context(
+            user_input=request.query,
+            num_sentences=request.generate_sentences
+        )
+        
+        if academic_context.get('error'):
+            # Fallback to regular search if LLM fails
+            logger.warning(f"LLM generation failed, falling back to regular search: {academic_context['error']}")
+            query_embedding = await embedding_service.generate_query_embedding(request.query)
+        else:
+            # Step 2: Generate embedding from the combined academic sentences
+            combined_text = academic_context.get('combined_text')
+            if not combined_text:
+                # Fallback if no sentences were generated
+                logger.warning("No sentences generated, using original query")
+                query_embedding = await embedding_service.generate_query_embedding(request.query)
+            else:
+                logger.info(f"Generating embedding for {academic_context.get('sentence_count')} sentences")
+                query_embedding = await embedding_service.generate_query_embedding(combined_text)
+        
+        if not query_embedding:
+            raise HTTPException(status_code=500, detail="Failed to generate embedding")
+        
+        # Step 3: Perform vector search with the enhanced embedding
+        results = await neo4j_aura_client.vector_search(
+            embedding=query_embedding,
+            min_score=request.min_score,
+            limit=request.limit
+        )
+        
+        # Step 4: Enhance results with prerequisites if requested
+        if request.include_prerequisites:
+            for result in results:
+                result['prerequisites'] = await neo4j_aura_client.get_prerequisite_chain(
+                    result['id'], max_depth=3
+                )
+        
+        # Prepare response
+        response = {
+            "original_query": request.query,
+            "search_method": "enhanced" if not academic_context.get('error') else "fallback",
+            "results": results,
+            "result_count": len(results),
+            "min_score_used": request.min_score
+        }
+        
+        # Include generated context if requested and available
+        if request.include_generated_context and not academic_context.get('error'):
+            response["generated_context"] = {
+                "sentences": academic_context.get('sentences', []),
+                "sentence_count": academic_context.get('sentence_count', 0),
+                "combined_text": academic_context.get('combined_text'),
+                "total_length": academic_context.get('total_length', 0)
+            }
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Enhanced vector search failed: {e}")
+        raise HTTPException(status_code=500, detail="Enhanced vector search failed")
+
+
+@router.post("/search/compare")
+async def compare_search_methods(
+    query: str = Body(..., description="Search query to test"),
+    min_score: float = Body(0.65, ge=0.0, le=1.0),
+    limit: int = Body(10, ge=1, le=50),
+    user: AuthenticatedUser = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    Compare regular vs enhanced search results for the same query
+    
+    Useful for testing and understanding the impact of LLM-enhanced search.
+    """
+    try:
+        # Perform regular search
+        regular_embedding = await embedding_service.generate_query_embedding(query)
+        regular_results = await neo4j_aura_client.vector_search(
+            embedding=regular_embedding,
+            min_score=min_score,
+            limit=limit
+        ) if regular_embedding else []
+        
+        # Perform enhanced search
+        academic_context = await llm_service.generate_academic_context(query, num_sentences=5)
+        
+        if academic_context.get('combined_text'):
+            enhanced_embedding = await embedding_service.generate_query_embedding(
+                academic_context['combined_text']
+            )
+            enhanced_results = await neo4j_aura_client.vector_search(
+                embedding=enhanced_embedding,
+                min_score=min_score,
+                limit=limit
+            ) if enhanced_embedding else []
+        else:
+            enhanced_results = []
+        
+        # Find unique results in each method
+        regular_ids = {r['id'] for r in regular_results}
+        enhanced_ids = {r['id'] for r in enhanced_results}
+        
+        unique_to_regular = regular_ids - enhanced_ids
+        unique_to_enhanced = enhanced_ids - regular_ids
+        common_results = regular_ids & enhanced_ids
+        
+        return {
+            "query": query,
+            "comparison": {
+                "regular_search": {
+                    "result_count": len(regular_results),
+                    "top_scores": [r['score'] for r in regular_results[:5]],
+                    "unique_results": len(unique_to_regular)
+                },
+                "enhanced_search": {
+                    "result_count": len(enhanced_results),
+                    "top_scores": [r['score'] for r in enhanced_results[:5]],
+                    "unique_results": len(unique_to_enhanced),
+                    "generated_sentences": academic_context.get('sentences', [])
+                },
+                "overlap": {
+                    "common_results": len(common_results),
+                    "percentage": (len(common_results) / max(len(regular_ids), len(enhanced_ids), 1)) * 100
+                }
+            },
+            "regular_results": regular_results[:5],  # Top 5 for brevity
+            "enhanced_results": enhanced_results[:5]  # Top 5 for brevity
+        }
+        
+    except Exception as e:
+        logger.error(f"Search comparison failed: {e}")
+        raise HTTPException(status_code=500, detail="Search comparison failed")
 
 
 @router.get("/health")

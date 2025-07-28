@@ -25,17 +25,32 @@ class EmbeddingService:
         
     async def initialize(self):
         """Initialize embedding models"""
+        logger.info(f"Initializing embedding service. OpenAI API key configured: {bool(settings.openai_api_key)}")
+        
         if self.use_openai:
-            self.openai_client = AsyncOpenAI(api_key=settings.openai_api_key)
-            logger.info("Initialized OpenAI embeddings")
-        else:
+            try:
+                self.openai_client = AsyncOpenAI(api_key=settings.openai_api_key)
+                logger.info(f"Initialized OpenAI embeddings client with API key starting with: {settings.openai_api_key[:10] if settings.openai_api_key else 'None'}...")
+                
+                # Test the client
+                test_response = await self.openai_client.embeddings.create(
+                    input="test",
+                    model="text-embedding-3-small"
+                )
+                logger.info(f"OpenAI embeddings test successful. Model: text-embedding-3-small, Dimensions: {len(test_response.data[0].embedding)}")
+            except Exception as e:
+                logger.error(f"Failed to initialize OpenAI client: {type(e).__name__}: {str(e)}")
+                self.openai_client = None
+                self.use_openai = False
+        
+        if not self.use_openai:
             # Fallback to local model
             try:
                 from sentence_transformers import SentenceTransformer
                 self.local_model = SentenceTransformer('all-MiniLM-L6-v2')
-                logger.info("Initialized local sentence-transformers model")
+                logger.info("Initialized local sentence-transformers model as fallback")
             except ImportError:
-                logger.warning("No embedding model available")
+                logger.warning("No embedding model available - neither OpenAI nor local model could be initialized")
     
     async def generate_embedding(
         self,
@@ -44,18 +59,22 @@ class EmbeddingService:
     ) -> Optional[List[float]]:
         """Generate embedding for a single text"""
         if not text:
+            logger.error("No text provided for embedding")
             return None
         
         try:
             if self.use_openai and self.openai_client:
+                logger.debug(f"Using OpenAI embeddings for text: {text[:100]}...")
                 # Use OpenAI embeddings
                 response = await self.openai_client.embeddings.create(
                     input=text,
                     model=model
                 )
+                logger.debug(f"Successfully generated OpenAI embedding of dimension {len(response.data[0].embedding)}")
                 return response.data[0].embedding
             
             elif self.local_model:
+                logger.debug("Using local sentence-transformers model")
                 # Use local model (run in thread to avoid blocking)
                 loop = asyncio.get_event_loop()
                 embedding = await loop.run_in_executor(
@@ -65,11 +84,13 @@ class EmbeddingService:
                 return embedding
             
             else:
-                logger.error("No embedding model available")
+                logger.error(f"No embedding model available. use_openai={self.use_openai}, openai_client={self.openai_client is not None}, local_model={self.local_model is not None}")
                 return None
                 
         except Exception as e:
-            logger.error(f"Failed to generate embedding: {e}")
+            logger.error(f"Failed to generate embedding: {type(e).__name__}: {str(e)}")
+            logger.error(f"API Key configured: {bool(settings.openai_api_key)}")
+            logger.error(f"API Key length: {len(settings.openai_api_key) if settings.openai_api_key else 0}")
             return None
     
     async def generate_embeddings_batch(

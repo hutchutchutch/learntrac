@@ -64,6 +64,7 @@ class Settings(BaseSettings):
     trac_auth_secret: str = os.getenv("TRAC_AUTH_SECRET", "")
     trac_base_url: str = os.getenv("TRAC_BASE_URL", "http://localhost:8000")
     session_timeout: int = int(os.getenv("SESSION_TIMEOUT", "3600"))  # 1 hour
+    jwt_secret_key: str = os.getenv("JWT_SECRET_KEY", "your-secret-key-here")
     
     # API Keys for service-to-service auth
     valid_api_keys: list = os.getenv("VALID_API_KEYS", "").split(",") if os.getenv("VALID_API_KEYS") else []

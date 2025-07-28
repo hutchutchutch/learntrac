@@ -152,7 +152,7 @@ class LearningPathResponse(BaseModel):
 # ===== Dependencies =====
 
 async def get_trac_service(
-    request: Any = Depends()
+    request: Request
 ) -> TracService:
     """Get Trac service instance"""
     app = request.app
@@ -186,7 +186,7 @@ async def get_trac_service(
 
 
 async def get_auth_service(
-    request: Any = Depends()
+    request: Request
 ) -> AuthService:
     """Get auth service instance"""
     app = request.app
@@ -333,6 +333,51 @@ async def debug_ping():
     }
 
 
+@router.get("/debug/graph-status")
+async def debug_graph_status(
+    trac_service: TracService = Depends(get_trac_service)
+):
+    """Debug endpoint to check Neo4j graph status"""
+    try:
+        # Check graph connectivity
+        result = await trac_service.neo4j_connection.execute_query(
+            "MATCH (n) RETURN labels(n) as labels, count(n) as count ORDER BY labels",
+            {}
+        )
+        
+        node_counts = {}
+        for record in result:
+            labels = record["labels"]
+            if labels:
+                label = labels[0]  # Primary label
+                node_counts[label] = record["count"]
+        
+        # Check for textbooks
+        textbooks = await trac_service.neo4j_connection.execute_query(
+            "MATCH (t:Textbook) RETURN t.textbook_id as id, t.title as title",
+            {}
+        )
+        
+        return {
+            "status": "connected",
+            "database": "neo4j",
+            "node_counts": node_counts,
+            "textbooks": [{
+                "id": t["id"],
+                "title": t["title"]
+            } for t in textbooks],
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Graph status check failed: {e}")
+        return {
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+
 @router.post("/debug/echo")
 async def debug_echo(data: Dict[str, Any] = Body(...)):
     """Debug endpoint that echoes back the received data"""
@@ -342,6 +387,34 @@ async def debug_echo(data: Dict[str, Any] = Body(...)):
         "timestamp": datetime.utcnow().isoformat(),
         "headers_count": len(data) if isinstance(data, dict) else 0
     }
+
+
+@router.get("/debug/test-toc-processor")
+async def debug_test_toc_processor():
+    """Debug endpoint to test TOC processor functionality"""
+    try:
+        from ..pdf_processing.toc_pdf_processor import TOCPDFProcessor
+        
+        processor = TOCPDFProcessor()
+        
+        return {
+            "status": "ok",
+            "processor_initialized": True,
+            "min_chunk_size": processor.min_chunk_size,
+            "max_chunk_size": processor.max_chunk_size,
+            "chunk_overlap": processor.chunk_overlap,
+            "concept_patterns_count": len(processor.concept_patterns),
+            "section_patterns_count": len(processor.section_patterns),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"TOC processor test failed: {e}")
+        return {
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }
 
 
 @router.post("/auth/validate-code")
@@ -520,9 +593,9 @@ async def get_embedding_service(request: Request) -> EmbeddingService:
 @router.post("/textbooks/upload-dev")
 async def upload_textbook_dev(
     file: UploadFile = File(...),
-    db_manager: DatabaseManager = Depends(get_db_manager),
-    redis_cache: RedisCache = Depends(get_redis_cache),
-    embedding_service: EmbeddingService = Depends(get_embedding_service)
+    title: Optional[str] = None,
+    subject: Optional[str] = None,
+    trac_service: TracService = Depends(get_trac_service)
 ):
     """Development endpoint for textbook upload (no auth required)"""
     # Validate file type
@@ -539,16 +612,40 @@ async def upload_textbook_dev(
             tmp_file.write(content)
             temp_path = tmp_file.name
         
-        # Process the PDF
-        # For now, just return success
-        return {
-            "textbook_id": f"book_{file.filename.replace('.pdf', '').replace(' ', '_').lower()}",
-            "title": file.filename.replace('.pdf', ''),
-            "pages": 100,  # Placeholder
-            "chunks_created": 50,  # Placeholder
-            "message": "Textbook uploaded successfully"
-        }
+        # Create metadata
+        from ..pdf_processing.neo4j_content_ingestion import TextbookMetadata
         
+        textbook_metadata = TextbookMetadata(
+            textbook_id="",  # Will be generated
+            title=title or file.filename.replace('.pdf', ''),
+            subject=subject or "Computer Science",
+            authors=[],
+            source_file=file.filename,
+            processing_date=datetime.utcnow(),
+            processing_version="2.0",  # TOC-based version
+            quality_metrics={},
+            statistics={}
+        )
+        
+        # Process textbook using TOC-based approach
+        logger.info(f"Processing textbook: {file.filename}")
+        result = await trac_service.ingest_textbook(temp_path, textbook_metadata)
+        
+        if result["success"]:
+            logger.info(f"Successfully processed textbook: {result['textbook_id']}")
+        else:
+            logger.error(f"Failed to process textbook: {result['error']}")
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Upload error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to process textbook: {str(e)}"
+        )
     finally:
         # Clean up temp file
         if 'temp_path' in locals():
@@ -557,6 +654,7 @@ async def upload_textbook_dev(
 
 @router.post("/textbooks/upload")
 async def upload_textbook(
+    request: Request,
     file: UploadFile = File(...),
     title: Optional[str] = None,
     subject: Optional[str] = None,
@@ -596,17 +694,23 @@ async def upload_textbook(
         textbook_metadata = TextbookMetadata(
             textbook_id="",  # Will be generated
             title=title or file.filename.replace('.pdf', ''),
-            subject=subject or "General",
+            subject=subject or "Computer Science",
             authors=[],
             source_file=file.filename,
             processing_date=datetime.utcnow(),
-            processing_version="1.0",
+            processing_version="2.0",  # TOC-based version
             quality_metrics={},
             statistics={}
         )
         
-        # Process textbook
+        # Process textbook using TOC-based approach
+        logger.info(f"Processing textbook: {file.filename}")
         result = await trac_service.ingest_textbook(temp_path, textbook_metadata)
+        
+        if result["success"]:
+            logger.info(f"Successfully processed textbook: {result['textbook_id']}")
+        else:
+            logger.error(f"Failed to process textbook: {result['error']}")
         
         return result
         

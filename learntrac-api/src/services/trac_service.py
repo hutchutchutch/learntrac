@@ -31,6 +31,7 @@ from ..pdf_processing.neo4j_query_optimizer import Neo4jQueryOptimizer, CacheStr
 from ..pdf_processing.pipeline import PDFProcessingPipeline
 from ..pdf_processing.content_chunker import ContentChunker
 from ..pdf_processing.embedding_pipeline import EmbeddingPipeline
+from ..pdf_processing.toc_pdf_processor import TOCPDFProcessor
 from ..services.embedding_service import EmbeddingService
 
 logger = logging.getLogger(__name__)
@@ -131,6 +132,7 @@ class TracService:
         self.pdf_pipeline = PDFProcessingPipeline()
         self.content_chunker = ContentChunker()
         self.embedding_pipeline = EmbeddingPipeline()
+        self.toc_processor = TOCPDFProcessor()
         
         self._initialized = False
         
@@ -170,7 +172,7 @@ class TracService:
         metadata: Optional[TextbookMetadata] = None
     ) -> Dict[str, Any]:
         """
-        Ingest a textbook PDF into the system.
+        Ingest a textbook PDF into the system using TOC-based processing.
         
         Args:
             pdf_path: Path to PDF file
@@ -180,67 +182,76 @@ class TracService:
             Ingestion result with statistics
         """
         try:
-            # Process PDF
-            logger.info(f"Processing PDF: {pdf_path}")
-            processing_result = self.pdf_pipeline.process_pdf(pdf_path)
+            # Use TOC-based processor for textbook PDFs
+            logger.info(f"Processing PDF using TOC-based approach: {pdf_path}")
             
-            if processing_result.status != "success":
+            # Get embedding dimensions from the service
+            embedding_dimensions = self.embedding_service.get_embedding_dimension()
+            logger.info(f"Using embedding dimensions: {embedding_dimensions}")
+            
+            # Ensure vector indexes exist for embeddings
+            logger.info("Ensuring vector indexes exist...")
+            index_results = await self.neo4j_index_manager.create_educational_indexes(
+                embedding_dimensions=embedding_dimensions
+            )
+            logger.info(f"Vector index creation results: {index_results}")
+            
+            # Process the PDF with TOC extraction and embedding
+            processing_result = await self.toc_processor.process_pdf(
+                pdf_path=pdf_path,
+                connection_manager=self.neo4j_connection,
+                index_manager=self.neo4j_index_manager,
+                embedding_service=self.embedding_service,
+                max_chunks_to_embed=None  # Embed all chunks
+            )
+            
+            if not processing_result.success:
                 return {
                     "success": False,
-                    "error": "PDF processing failed",
-                    "details": processing_result.errors
+                    "error": processing_result.error or "PDF processing failed",
+                    "details": {}
                 }
             
-            # Chunk content
-            logger.info("Chunking content")
-            chunks = self.content_chunker.chunk_text(
-                processing_result.final_text,
-                processing_result.structure_elements
-            )
-            
-            # Generate embeddings
-            logger.info("Generating embeddings")
-            embeddings = []
-            for chunk in chunks:
-                embedding_result = await self.embedding_pipeline.process_chunk(
-                    chunk.chunk_id,
-                    chunk.text,
-                    chunk
-                )
-                embeddings.append((chunk, chunk.text, embedding_result.embedding))
-            
-            # Ingest into Neo4j
-            logger.info("Ingesting into Neo4j")
-            ingestion_result = await self.neo4j_ingestion.ingest_processing_result(
-                processing_result,
-                embeddings,
-                metadata
-            )
-            
             # Create Trac tickets for main concepts
-            await self._create_concept_tickets(ingestion_result.textbook_id)
+            await self._create_concept_tickets(processing_result.textbook_id)
             
-            # Cache textbook metadata
-            await self._cache_textbook_metadata(
-                ingestion_result.textbook_id,
-                metadata or self._extract_metadata(processing_result)
-            )
+            # Cache textbook metadata if provided
+            if metadata:
+                await self._cache_textbook_metadata(
+                    processing_result.textbook_id,
+                    metadata
+                )
             
             return {
-                "success": ingestion_result.success,
-                "textbook_id": ingestion_result.textbook_id,
+                "success": processing_result.success,
+                "textbook_id": processing_result.textbook_id,
                 "statistics": {
-                    "chapters": ingestion_result.nodes_created.get("chapters", 0),
-                    "sections": ingestion_result.nodes_created.get("sections", 0),
-                    "chunks": ingestion_result.nodes_created.get("chunks", 0),
-                    "concepts": ingestion_result.nodes_created.get("concepts", 0),
-                    "processing_time": ingestion_result.processing_time
+                    "chapters": len(processing_result.chapters),
+                    "sections": len(processing_result.sections),
+                    "concepts": len(processing_result.concepts),
+                    "chunks": processing_result.total_chunks,
+                    "embeddings_generated": processing_result.embeddings_generated,
+                    "processing_time": processing_result.processing_time,
+                    "embedding_dimensions": embedding_dimensions,
+                    "vector_indexes_created": sum(index_results.values()) if 'index_results' in locals() else 0
                 },
-                "summary": ingestion_result.summary()
+                "summary": processing_result.summary(),
+                "details": {
+                    "chapters_processed": [
+                        {
+                            "number": ch.number,
+                            "title": ch.title,
+                            "sections": len(ch.sections)
+                        }
+                        for ch in processing_result.chapters[:5]  # First 5 chapters
+                    ]
+                }
             }
             
         except Exception as e:
             logger.error(f"Failed to ingest textbook: {e}")
+            import traceback
+            traceback.print_exc()
             return {
                 "success": False,
                 "error": str(e)
@@ -684,15 +695,15 @@ class TracService:
     
     async def _create_concept_tickets(self, textbook_id: str) -> None:
         """Create Trac tickets for main concepts"""
-        # Get main concepts from textbook
+        # Get main concepts from textbook using our new structure
         query = """
             MATCH (t:Textbook {textbook_id: $textbook_id})
-            MATCH (c:Chunk)-[:BELONGS_TO_TEXTBOOK]->(t)
-            MATCH (c)-[:INTRODUCES_CONCEPT]->(concept:Concept)
-            RETURN DISTINCT concept.name as name,
-                   concept.type as type,
-                   count(c) as chunk_count
-            ORDER BY chunk_count DESC
+            MATCH (c:Concept {textbook_id: $textbook_id})
+            MATCH (s:Section {textbook_id: $textbook_id})-[:CONTAINS_CONCEPT]->(c)
+            RETURN DISTINCT c.concept_name as name,
+                   s.section_number as section,
+                   count(DISTINCT c) as concept_count
+            ORDER BY section
             LIMIT 20
         """
         
@@ -704,15 +715,16 @@ class TracService:
         # Create tickets for top concepts
         for concept in results:
             await self.trac_bridge.create_learning_ticket(
-                title=f"Learn: {concept['name']}",
-                description=f"Master the concept of {concept['name']}",
+                title=f"Learn: {concept['name'][:100]}",  # Limit title length
+                description=f"Master the concept from section {concept['section']}: {concept['name']}",
                 component="learning",
                 type="concept",
                 custom_fields={
                     "learning_difficulty": "2.0",
                     "mastery_threshold": "0.8",
-                    "concept_type": concept.get("type", "general"),
-                    "textbook_id": textbook_id
+                    "concept_type": "textbook_concept",
+                    "textbook_id": textbook_id,
+                    "section_number": concept['section']
                 }
             )
     

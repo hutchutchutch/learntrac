@@ -1,0 +1,14 @@
+{
+  "textbook_id": "cs_textbook_f4e2271b",
+  "pdf_file": "Introduction_To_Computer_Science.pdf",
+  "stats": {
+    "chapters": 14,
+    "sections": 50,
+    "concepts": 157,
+    "chunks": 457,
+    "embeddings": 100,
+    "relationships": 310,
+    "processing_time": 41.92545127868652
+  },
+  "timestamp": "2025-07-27T23:54:26.328458"
+}

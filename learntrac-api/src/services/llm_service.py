@@ -25,7 +25,7 @@ class LLMService:
     
     def __init__(self):
         self.api_gateway_url = os.getenv('API_GATEWAY_URL', 'https://api.openai.com/v1')
-        self.api_key = os.getenv('LLM_API_KEY', settings.openai_api_key)
+        self.api_key = os.getenv('LLM_API_KEY', os.getenv('OPENAI_API_KEY', settings.openai_api_key))
         self.timeout = aiohttp.ClientTimeout(total=60, connect=10)
         self.session = None
         self.circuit_breaker = CircuitBreaker()
@@ -475,6 +475,164 @@ QUALITY CRITERIA:
                 questions.append(result)
         
         return questions
+    
+    async def generate_academic_context(
+        self,
+        user_input: str,
+        num_sentences: int = 5
+    ) -> Dict[str, Any]:
+        """
+        Generate academic sentences that expand on the user's input
+        for improved vector search
+        
+        Args:
+            user_input: The user's search query or topic
+            num_sentences: Number of sentences to generate (default: 5)
+            
+        Returns:
+            Dict containing generated sentences and metadata
+        """
+        if not self.session or not self.api_key:
+            logger.error("LLM service not properly initialized")
+            return {
+                'error': 'LLM service not available',
+                'sentences': [],
+                'combined_text': None
+            }
+        
+        # Check circuit breaker
+        if not self.circuit_breaker.can_execute():
+            logger.warning("Circuit breaker is open, skipping LLM call")
+            return {
+                'error': 'Service temporarily unavailable',
+                'sentences': [],
+                'combined_text': None
+            }
+        
+        try:
+            # Create specialized prompt for academic expansion
+            prompt = f"""You are an expert educator helping to improve search relevance for academic content by creating a hierarchical knowledge structure.
+
+USER INPUT: "{user_input}"
+
+TASK: Generate exactly {num_sentences} academic sentences that progressively narrow from broad academic fields to specific concepts. Follow this hierarchy:
+
+SENTENCE_1: Broad academic field and its major branches
+SENTENCE_2: Primary sub-disciplines and their relationships
+SENTENCE_3: Key theories, methodologies, and frameworks
+SENTENCE_4: Core concepts, techniques, and specific algorithms/methods
+SENTENCE_5: Detailed list of fundamental terms, formulas, and practical elements
+
+REQUIREMENTS:
+- Progress from HIGH-LEVEL (general academic context) to FINE-GRAINED (specific concept lists)
+- Each sentence should be 50-100 words
+- Include progressively more specific terminology at each level
+- Maintain academic accuracy while increasing specificity
+- End with concrete, searchable terms and concepts
+
+FORMAT YOUR RESPONSE EXACTLY AS:
+SENTENCE_1: [Broad academic field]
+SENTENCE_2: [Sub-disciplines]
+SENTENCE_3: [Theories and methodologies]
+SENTENCE_4: [Core concepts and techniques]
+SENTENCE_5: [Specific terms and elements]
+
+EXAMPLE for input "neural networks":
+SENTENCE_1: Neural networks belong to the broader field of artificial intelligence and machine learning, intersecting with computer science, cognitive science, neuroscience, and computational mathematics, serving as fundamental tools for pattern recognition and intelligent system design.
+SENTENCE_2: Key sub-disciplines include deep learning architectures, computational neuroscience modeling, statistical learning theory, optimization algorithms, and neural information processing, each contributing unique perspectives to understanding and implementing artificial neural systems.
+SENTENCE_3: Theoretical frameworks encompass universal approximation theorem, backpropagation algorithm, gradient-based optimization, regularization theory, representation learning, and information bottleneck principle, providing mathematical foundations for neural network design and training.
+SENTENCE_4: Core techniques include convolutional layers for spatial feature extraction, recurrent units for temporal dependencies, attention mechanisms for selective focus, dropout for regularization, batch normalization for training stability, and transfer learning for knowledge reuse.
+SENTENCE_5: Essential concepts comprise activation functions (ReLU, sigmoid, tanh), loss functions (cross-entropy, MSE), optimizers (SGD, Adam, RMSprop), weight initialization (Xavier, He), learning rate scheduling, gradient clipping, early stopping, and hyperparameters (batch size, epochs, layers)."""
+
+            # Make LLM request
+            result = await self._make_llm_request(prompt)
+            
+            if result.get('error'):
+                self.circuit_breaker.record_failure()
+                return {
+                    'error': result['error'],
+                    'sentences': [],
+                    'combined_text': None
+                }
+            
+            # Parse response
+            parsed_result = self._parse_academic_sentences(result, num_sentences)
+            
+            if parsed_result['sentences']:
+                self.circuit_breaker.record_success()
+                logger.info(f"Successfully generated {len(parsed_result['sentences'])} academic sentences")
+                return parsed_result
+            else:
+                logger.warning("Failed to generate academic sentences")
+                return {
+                    'error': 'Failed to generate academic context',
+                    'sentences': [],
+                    'combined_text': None
+                }
+                
+        except Exception as e:
+            self.circuit_breaker.record_failure()
+            logger.error(f"Error generating academic context: {e}")
+            return {
+                'error': f'Academic context generation failed: {str(e)}',
+                'sentences': [],
+                'combined_text': None
+            }
+    
+    def _parse_academic_sentences(self, response: Dict[str, Any], expected_count: int) -> Dict[str, Any]:
+        """Parse LLM response to extract academic sentences"""
+        try:
+            # Extract content from response
+            if 'choices' in response:
+                content = response['choices'][0]['message']['content']
+            elif 'response' in response:
+                content = response['response']
+            else:
+                content = str(response)
+            
+            # Extract sentences using regex
+            sentences = []
+            for i in range(1, expected_count + 1):
+                pattern = rf'SENTENCE_{i}:\s*(.+?)(?=SENTENCE_\d+:|$)'
+                match = re.search(pattern, content, re.DOTALL | re.IGNORECASE)
+                if match:
+                    sentence = match.group(1).strip()
+                    sentence = self._clean_text(sentence)
+                    if sentence and len(sentence) > 20:  # Ensure meaningful content
+                        sentences.append(sentence)
+            
+            # Fallback parsing if structured format not found
+            if len(sentences) < expected_count:
+                # Try to extract any reasonable sentences
+                lines = content.strip().split('\n')
+                for line in lines:
+                    line = line.strip()
+                    if (line and 
+                        len(line) > 50 and 
+                        not line.upper().startswith('SENTENCE') and
+                        '.' in line):
+                        sentences.append(self._clean_text(line))
+                        if len(sentences) >= expected_count:
+                            break
+            
+            # Combine sentences for embedding
+            combined_text = ' '.join(sentences) if sentences else None
+            
+            return {
+                'sentences': sentences,
+                'combined_text': combined_text,
+                'sentence_count': len(sentences),
+                'total_length': len(combined_text) if combined_text else 0,
+                'generated_at': datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Error parsing academic sentences: {e}")
+            return {
+                'sentences': [],
+                'combined_text': None,
+                'error': f'Failed to parse sentences: {str(e)}'
+            }
 
 
 class CircuitBreaker:

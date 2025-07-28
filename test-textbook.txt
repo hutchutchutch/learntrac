@@ -1,0 +1,5 @@
+Introduction to Computer Science
+Chapter 1: Basic Programming Concepts
+
+This is a test textbook uploaded by hutch@gmail.com
+It should be visible to all users in the system.

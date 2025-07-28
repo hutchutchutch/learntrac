@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LearnTrac User Flow Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 50px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        button { padding: 10px 20px; margin: 10px; font-size: 16px; cursor: pointer; }
+        .success { color: green; font-weight: bold; }
+        .info { background: #f0f0f0; padding: 20px; margin: 20px 0; border-radius: 5px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>LearnTrac Authentication & Sharing Test</h1>
+        
+        <div class="info">
+            <h2>✅ Completed Setup</h2>
+            <ul>
+                <li>AWS Cognito User Pool configured</li>
+                <li>OAuth2 proxy with PKCE support working</li>
+                <li>User "hutch" created and verified</li>
+                <li>Nginx authentication integration complete</li>
+                <li>Trac wiki system accessible</li>
+            </ul>
+        </div>
+
+        <h2>Authentication Flow</h2>
+        <button onclick="window.open('http://localhost/', '_blank')">1. Access LearnTrac (Requires Login)</button>
+        <p>This will redirect to Cognito login page. Use credentials:</p>
+        <ul>
+            <li><strong>Username:</strong> hutch</li>
+            <li><strong>Email:</strong> hutchenbach@gmail.com</li>
+            <li><strong>Password:</strong> (the one you set)</li>
+        </ul>
+
+        <h2>Direct API Access (Development)</h2>
+        <button onclick="checkAPI()">2. Check API Health</button>
+        <button onclick="window.open('http://localhost:8001/docs', '_blank')">3. View API Documentation</button>
+
+        <h2>Textbook Sharing Test</h2>
+        <p>The textbook upload feature requires PDF files. Earlier we successfully uploaded "Introduction to Philosophy".</p>
+        <p>All users who log in will see the same shared textbooks in their wiki.</p>
+
+        <h2>System Status</h2>
+        <div id="status"></div>
+
+        <h2>Architecture Overview</h2>
+        <table>
+            <tr>
+                <th>Component</th>
+                <th>Port</th>
+                <th>Purpose</th>
+                <th>Status</th>
+            </tr>
+            <tr>
+                <td>Nginx</td>
+                <td>80</td>
+                <td>Reverse proxy with auth</td>
+                <td class="success">✓ Running</td>
+            </tr>
+            <tr>
+                <td>OAuth2 Proxy</td>
+                <td>4180</td>
+                <td>Cognito authentication</td>
+                <td class="success">✓ Running</td>
+            </tr>
+            <tr>
+                <td>Trac Wiki</td>
+                <td>8000</td>
+                <td>Legacy wiki system</td>
+                <td class="success">✓ Running</td>
+            </tr>
+            <tr>
+                <td>LearnTrac API</td>
+                <td>8001</td>
+                <td>Modern API layer</td>
+                <td class="success">✓ Running</td>
+            </tr>
+            <tr>
+                <td>Neo4j</td>
+                <td>7474/7687</td>
+                <td>Graph database</td>
+                <td class="success">✓ Running</td>
+            </tr>
+            <tr>
+                <td>AWS RDS</td>
+                <td>5432</td>
+                <td>PostgreSQL database</td>
+                <td class="success">✓ Connected</td>
+            </tr>
+        </table>
+    </div>
+
+    <script>
+        async function checkAPI() {
+            try {
+                const response = await fetch('http://localhost:8001/health');
+                const data = await response.json();
+                document.getElementById('status').innerHTML = 
+                    '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            } catch (error) {
+                document.getElementById('status').innerHTML = 
+                    '<p style="color: red;">Error: ' + error.message + '</p>';
+            }
+        }
+    </script>
+</body>
+</html>

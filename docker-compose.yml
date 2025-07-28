@@ -126,44 +126,36 @@ services:
   #     timeout: 5s
   #     retries: 5
 
-  # OAuth2 Proxy for Cognito authentication
+  # OAuth2 Proxy for Cognito authentication with PKCE
   oauth2-proxy:
     image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
     container_name: oauth2-proxy
+    # Use command for explicit configuration
+    command:
+      - --provider=oidc
+      - --oidc-issuer-url=https://cognito-idp.us-east-2.amazonaws.com/us-east-2_1AzmDXp0K
+      - --client-id=47puc5a858179his8g5f60ij4h
+      - --client-secret=${COGNITO_CLIENT_SECRET}
+      - --cookie-secret=${OAUTH2_PROXY_COOKIE_SECRET}
+      - --redirect-url=http://localhost/oauth2/callback
+      - --upstream=http://trac-legacy:8000
+      - --email-domain=*
+      - --http-address=0.0.0.0:4180
+      # --- FIXES ---
+      - --code-challenge-method=S256     # Enable PKCE for Cognito with S256
+      - --cookie-secure=false            # Force insecure cookie for localhost
+      - --pass-access-token=true         # Pass token to backend
+      - --set-xauthrequest=true
+      - --skip-provider-button=true
+      - --pass-user-headers=true
+      # --- Logging ---
+      - --auth-logging=true
+      - --standard-logging=true
     environment:
-      # Basic config
-      OAUTH2_PROXY_PROVIDER: "oidc"
-      OAUTH2_PROXY_CLIENT_ID: "47puc5a858179his8g5f60ij4h"
       OAUTH2_PROXY_CLIENT_SECRET: "${COGNITO_CLIENT_SECRET}"
       OAUTH2_PROXY_COOKIE_SECRET: "${OAUTH2_PROXY_COOKIE_SECRET}"
-      
-      # Cognito-specific endpoints
-      OAUTH2_PROXY_OIDC_ISSUER_URL: "https://cognito-idp.us-east-2.amazonaws.com/us-east-2_1AzmDXp0K"
-      OAUTH2_PROXY_PROVIDER_DISPLAY_NAME: "AWS Cognito"
-      
-      # Override discovery with explicit URLs
-      OAUTH2_PROXY_LOGIN_URL: "https://hutch-learntrac-dev-auth.auth.us-east-2.amazoncognito.com/login"
-      OAUTH2_PROXY_REDEEM_URL: "https://hutch-learntrac-dev-auth.auth.us-east-2.amazoncognito.com/oauth2/token"
-      OAUTH2_PROXY_OIDC_JWKS_URL: "https://cognito-idp.us-east-2.amazonaws.com/us-east-2_1AzmDXp0K/.well-known/jwks.json"
-      
-      # Redirect and upstream
-      OAUTH2_PROXY_REDIRECT_URL: "http://localhost/oauth2/callback"
-      OAUTH2_PROXY_UPSTREAMS: "http://trac-legacy:8000"
-      
-      # Cookie settings for localhost
-      OAUTH2_PROXY_COOKIE_SECURE: "false"
-      OAUTH2_PROXY_COOKIE_DOMAINS: ".localhost"
-      OAUTH2_PROXY_COOKIE_NAME: "_oauth2_proxy"
-      
-      # Other settings
-      OAUTH2_PROXY_EMAIL_DOMAINS: "*"
-      OAUTH2_PROXY_PASS_USER_HEADERS: "true"
-      OAUTH2_PROXY_SET_XAUTHREQUEST: "true"
-      OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "true"
-      
-      # Debug
-      OAUTH2_PROXY_STANDARD_LOGGING: "true"
-      OAUTH2_PROXY_AUTH_LOGGING: "true"
+    ports:
+      - "4180:4180"
     networks:
       - learntrac-network
     depends_on:

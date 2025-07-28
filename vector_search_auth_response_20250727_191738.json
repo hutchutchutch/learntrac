@@ -1,0 +1,19 @@
+{
+  "original_query": "What are binary search trees and how do they work?",
+  "search_method": "enhanced",
+  "results": [],
+  "result_count": 0,
+  "min_score_used": 0.7,
+  "generated_context": {
+    "sentences": [
+      "Binary search trees fall under the broad academic field of computer science, specifically in the area of data structures, algorithms, and computational theory, playing a crucial role in efficient data management and processing.",
+      "Important sub-disciplines include algorithmic design and analysis, computational complexity theory, data management, and programming languages, all of which contribute to the understanding and application of binary search trees.",
+      "Central theories and methodologies involve the study of tree data structures, binary trees, search algorithms, sorting algorithms, and balanced trees, providing the theoretical underpinnings for the design and operation of binary search trees.",
+      "Core concepts and techniques include node creation and deletion, tree traversal methods (in-order, pre-order, post-order), tree balancing techniques (AVL, Red-Black Trees), and search and insertion operations, all essential to the efficient use of binary search trees.",
+      "Fundamental terms and components include root, leaf, subtree, parent and child nodes, depth and height of the tree, balance factor, rotation operations (right, left), and properties of binary search trees (left child nodes less than parent, right child nodes greater than parent)."
+    ],
+    "sentence_count": 5,
+    "combined_text": "Binary search trees fall under the broad academic field of computer science, specifically in the area of data structures, algorithms, and computational theory, playing a crucial role in efficient data management and processing. Important sub-disciplines include algorithmic design and analysis, computational complexity theory, data management, and programming languages, all of which contribute to the understanding and application of binary search trees. Central theories and methodologies involve the study of tree data structures, binary trees, search algorithms, sorting algorithms, and balanced trees, providing the theoretical underpinnings for the design and operation of binary search trees. Core concepts and techniques include node creation and deletion, tree traversal methods (in-order, pre-order, post-order), tree balancing techniques (AVL, Red-Black Trees), and search and insertion operations, all essential to the efficient use of binary search trees. Fundamental terms and components include root, leaf, subtree, parent and child nodes, depth and height of the tree, balance factor, rotation operations (right, left), and properties of binary search trees (left child nodes less than parent, right child nodes greater than parent).",
+    "total_length": 1250
+  }
+}
