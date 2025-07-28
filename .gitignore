@@ -135,4 +135,6 @@ desktop.ini
 
 # Task files
 # tasks.json
-# tasks/
+# tasks/# Large files to exclude from Git
+textbooks/*.pdf
+*.pdf
