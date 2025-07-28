@@ -135,6 +135,13 @@ desktop.ini
 
 # Task files
 # tasks.json
-# tasks/# Large files to exclude from Git
+# tasks/
+
+# Large files to exclude from Git
 textbooks/*.pdf
 *.pdf
+
+# Large files that exceed GitHub limits (over 50MB)
+textbooks/Introduction_To_Computer_Science.pdf
+textbooks/Anatomy_and_Physiology.pdf
+textbooks/College_Algebra.pdf
